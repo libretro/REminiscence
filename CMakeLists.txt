@@ -28,7 +28,6 @@ set(BASE_SOURCES
         src/menu.cpp
         src/mixer.cpp
         src/mod_player.cpp
-        src/ogg_player.cpp
         src/piege.cpp
         src/resource.cpp
         src/resource_aba.cpp
