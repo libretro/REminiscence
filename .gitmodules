@@ -1,0 +1,3 @@
+[submodule "3rdparty/libmodplug"]
+	path = 3rdparty/libmodplug
+	url = https://github.com/Konstanty/libmodplug.git
