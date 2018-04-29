@@ -4,12 +4,18 @@ project(reminiscence)
 set(CMAKE_CXX_STANDARD 11)
 list(APPEND CMAKE_MODULE_PATH ${reminiscence_SOURCE_DIR}/cmake)
 
+# Allow the developer to select if Dynamic or Static libraries are built
+option(BUILD_EXE "Build executable" ON)
+option(USE_MODPLUG "Use modplug" ON)
+
+if (USE_MODPLUG)
+    add_definitions(-DUSE_MODPLUG)
+    include_directories(3rdparty/libmodplug/src)
+endif ()
+
 add_subdirectory(3rdparty/libmodplug)
 
-find_package(SDL2 REQUIRED)
-
 include_directories(src)
-include_directories(${SDL2_INCLUDE_DIR})
 
 set(BASE_SOURCES
         src/collision.cpp
@@ -39,7 +45,12 @@ set(EXE_SOURCES
         src/systemstub_sdl.cpp
         src/main.cpp)
 
-add_executable(reminiscence
-        ${BASE_SOURCES} ${EXE_SOURCES})
+if (BUILD_EXE)
+    find_package(SDL2 REQUIRED)
+    include_directories(${SDL2_INCLUDE_DIR})
 
-target_link_libraries(reminiscence modplug ${SDL2_LIBRARY})
+    add_executable(reminiscence
+            ${BASE_SOURCES} ${EXE_SOURCES})
+
+    target_link_libraries(reminiscence modplug ${SDL2_LIBRARY})
+endif ()
