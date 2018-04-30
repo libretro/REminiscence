@@ -102,7 +102,7 @@ struct Cutscene {
 	void drawText(int16_t x, int16_t y, const uint8_t *p, uint16_t color, uint8_t *page, uint8_t n);
 	void swapLayers();
 	void drawCreditsText();
-	void drawProtectionShape(uint8_t shapeNum, int16_t zoom);
+
 	void drawShape(const uint8_t *data, int16_t x, int16_t y);
 	void drawShapeScale(const uint8_t *data, int16_t zoom, int16_t b, int16_t c, int16_t d, int16_t e, int16_t f, int16_t g);
 	void drawShapeScaleRotate(const uint8_t *data, int16_t zoom, int16_t b, int16_t c, int16_t d, int16_t e, int16_t f, int16_t g);

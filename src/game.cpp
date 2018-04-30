@@ -24,40 +24,34 @@ Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, Re
 	_demoBin = -1;
 }
 
-void Game::run() {
+void Game::init() {
 	_randSeed = time(0);
 
 	_res.init();
 	_res.load_TEXT();
 
 	switch (_res._type) {
-	case kResourceTypeAmiga:
-		_res.load("FONT8", Resource::OT_FNT, "SPR");
-		if (_res._isDemo) {
-			_cut._patchedOffsetsTable = Cutscene::_amigaDemoOffsetsTable;
-		}
-		break;
-	case kResourceTypeDOS:
-		_res.load("FB_TXT", Resource::OT_FNT);
-		if (g_options.use_seq_cutscenes) {
-			_res._hasSeqData = _fs->exists("INTRO.SEQ");
-		}
-		if (_fs->exists("logosssi.cmd")) {
-			_cut._patchedOffsetsTable = Cutscene::_ssiOffsetsTable;
-		}
-		break;
+		case kResourceTypeAmiga:
+			_res.load("FONT8", Resource::OT_FNT, "SPR");
+			if (_res._isDemo) {
+				_cut._patchedOffsetsTable = Cutscene::_amigaDemoOffsetsTable;
+			}
+			break;
+		case kResourceTypeDOS:
+			_res.load("FB_TXT", Resource::OT_FNT);
+			if (g_options.use_seq_cutscenes) {
+				_res._hasSeqData = _fs->exists("INTRO.SEQ");
+			}
+			if (_fs->exists("logosssi.cmd")) {
+				_cut._patchedOffsetsTable = Cutscene::_ssiOffsetsTable;
+			}
+			break;
 	}
-
-	if (!g_options.bypass_protection) {
-		while (!handleProtectionScreen());
-		if (_stub->_pi.quit) {
-			return;
-		}
-	}
-
 	_mix.init();
 	_mix._mod._isAmiga = _res.isAmiga();
+}
 
+void Game::run() {
 	playCutscene(0x40);
 	playCutscene(0x0D);
 
@@ -623,87 +617,6 @@ bool Game::handleContinueAbort() {
 		memcpy(_vid._frontLayer, _vid._tempLayer, _vid._layerSize);
 	}
 	return false;
-}
-
-bool Game::handleProtectionScreen() {
-	bool valid = true;
-	_cut.prepare();
-	const int palOffset = _res.isAmiga() ? 32 : 0;
-	_cut.copyPalette(_protectionPal + palOffset, 0);
-
-	_cut.updatePalette();
-	_cut._gfx.setClippingRect(64, 48, 128, 128);
-
-	_menu._charVar1 = 0xE0;
-	_menu._charVar2 = 0xEF;
-	_menu._charVar4 = 0xE5;
-	_menu._charVar5 = 0xE2;
-
-	int shapeNum = getRandomNumber() % 30;
-	for (int16_t zoom = 2000; zoom != 0; zoom -= 100) {
-		_cut.drawProtectionShape(shapeNum, zoom);
-		_stub->copyRect(0, 0, _vid._w, _vid._h, _vid._tempLayer, 256);
-		_stub->updateScreen(0);
-		_stub->sleep(30);
-	}
-	int codeNum = getRandomNumber() % 5;
-	_cut.drawProtectionShape(shapeNum, 1);
-	_vid.setTextPalette();
-	char codeText[7];
-	int len = 0;
-	do {
-		codeText[len] = '\0';
-		memcpy(_vid._frontLayer, _vid._tempLayer, _vid._layerSize);
-		_vid.drawString("PROTECTION", 11 * 8, 2 * 8, _menu._charVar2);
-		char buf[20];
-		snprintf(buf, sizeof(buf), "CODE %d :  %s", codeNum + 1, codeText);
-		_vid.drawString(buf, 8 * 8, 23 * 8, _menu._charVar2);
-		_vid.updateScreen();
-		_stub->sleep(50);
-		_stub->processEvents();
-		char c = _stub->_pi.lastChar;
-		if (c != 0) {
-			_stub->_pi.lastChar = 0;
-			if (len < 6) {
-				if (c >= 'a' && c <= 'z') {
-					c &= ~0x20;
-				}
-				if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
-					codeText[len] = c;
-					++len;
-				}
-			}
-		}
-		if (_stub->_pi.backspace) {
-			_stub->_pi.backspace = false;
-			if (len > 0) {
-				--len;
-			}
-		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
-			if (len > 0) {
-				const uint8_t *p = _protectionCodeData + shapeNum * 0x1E + codeNum * 6;
-				for (int i = 0; i < len; ++i) {
-					uint8_t r = 0;
-					uint8_t ch = codeText[i];
-					for (int b = 0; b < 8; ++b) {
-						if (ch & (1 << b)) {
-							r |= (1 << (7 - b));
-						}
-					}
-					r ^= 0x55;
-					if (r != *p++) {
-						valid = false;
-						break;
-					}
-				}
-				break;
-			}
-		}
-	} while (!_stub->_pi.quit);
-	_vid.fadeOut();
-	return valid;
 }
 
 void Game::printLevelCode() {
@@ -1411,15 +1324,7 @@ void Game::loadLevelData() {
 		_res.load(lvl->name, Resource::OT_CT);
 		_res.load(lvl->name, Resource::OT_PAL);
 		_res.load(lvl->name, Resource::OT_RP);
-		if (_res._isDemo || g_options.use_tiledata) { // use .BNQ/.LEV/(.SGD) instead of .MAP (PC demo)
-			if (_currentLevel == 0) {
-				_res.load(lvl->name, Resource::OT_SGD);
-			}
-			_res.load(lvl->name, Resource::OT_LEV);
-			_res.load(lvl->name, Resource::OT_BNQ);
-		} else {
-			_res.load(lvl->name, Resource::OT_MAP);
-		}
+		_res.load(lvl->name, Resource::OT_MAP);
 		_res.load(lvl->name2, Resource::OT_PGE);
 		_res.load(lvl->name2, Resource::OT_OBJ);
 		_res.load(lvl->name2, Resource::OT_ANI);
