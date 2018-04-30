@@ -11,7 +11,6 @@
 #include "file.h"
 #include "fs.h"
 #include "game.h"
-#include "scaler.h"
 #include "systemstub.h"
 #include "util.h"
 
@@ -22,7 +21,6 @@ static const char *USAGE =
 	"  --savepath=PATH   Path to save files (default '.')\n"
 	"  --levelnum=NUM    Start to level, bypass introduction\n"
 	"  --fullscreen      Fullscreen display\n"
-	"  --scaler=NAME@X   Graphics scaler (default 'scale@3')\n"
 	"  --language=LANG   Language (fr,en,de,sp,it,jp)\n"
 ;
 
@@ -125,52 +123,11 @@ static void initOptions() {
 	}
 }
 
-static void parseScaler(char *name, ScalerParameters *scalerParameters) {
-	struct {
-		const char *name;
-		int type;
-	} scalers[] = {
-		{ "point", kScalerTypePoint },
-		{ "linear", kScalerTypeLinear },
-		{ "scale", kScalerTypeInternal },
-		{ 0, -1 }
-	};
-	bool found = false;
-	char *sep = strchr(name, '@');
-	if (sep) {
-		*sep = 0;
-	}
-	for (int i = 0; scalers[i].name; ++i) {
-		if (strcmp(scalers[i].name, name) == 0) {
-			scalerParameters->type = (ScalerType)scalers[i].type;
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		char libname[32];
-		snprintf(libname, sizeof(libname), "scaler_%s", name);
-		const Scaler *scaler = findScaler(libname);
-		if (!scaler) {
-			warning("Scaler '%s' not found, using default", libname);
-		} else if (scaler->tag != SCALER_TAG) {
-			warning("Unexpected tag %d for scaler '%s'", scaler->tag, libname);
-		} else {
-			scalerParameters->type = kScalerTypeExternal;
-			scalerParameters->scaler = scaler;
-		}
-	}
-	if (sep) {
-		scalerParameters->factor = atoi(sep + 1);
-	}
-}
-
 int main(int argc, char *argv[]) {
 	const char *dataPath = "DATA";
 	const char *savePath = ".";
 	int levelNum = 0;
 	bool fullscreen = false;
-	ScalerParameters scalerParameters = ScalerParameters::defaults();
 	int forcedLanguage = -1;
 	if (argc == 2) {
 		// data path as the only command line argument
@@ -185,8 +142,7 @@ int main(int argc, char *argv[]) {
 			{ "savepath",   required_argument, 0, 2 },
 			{ "levelnum",   required_argument, 0, 3 },
 			{ "fullscreen", no_argument,       0, 4 },
-			{ "scaler",     required_argument, 0, 5 },
-			{ "language",   required_argument, 0, 6 },
+			{ "language",   required_argument, 0, 5 },
 			{ 0, 0, 0, 0 }
 		};
 		int index;
@@ -207,10 +163,7 @@ int main(int argc, char *argv[]) {
 		case 4:
 			fullscreen = true;
 			break;
-		case 5:
-			parseScaler(optarg, &scalerParameters);
-			break;
-		case 6: {
+		case 5: {
 				static const struct {
 					int lang;
 					const char *str;
@@ -247,7 +200,8 @@ int main(int argc, char *argv[]) {
 	const Language language = (forcedLanguage == -1) ? detectLanguage(&fs) : (Language)forcedLanguage;
 	SystemStub *stub = SystemStub_SDL_create();
 	Game *g = new Game(stub, &fs, savePath, levelNum, (ResourceType)version, language);
-	stub->init(g_caption, Video::GAMESCREEN_W, Video::GAMESCREEN_H, fullscreen, &scalerParameters);
+	stub->init(g_caption, Video::GAMESCREEN_W, Video::GAMESCREEN_H, fullscreen);
+	g->init();
 	g->run();
 	delete g;
 	stub->destroy();

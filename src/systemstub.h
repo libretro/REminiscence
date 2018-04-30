@@ -8,7 +8,6 @@
 #define SYSTEMSTUB_H__
 
 #include "intern.h"
-#include "scaler.h"
 
 struct PlayerInput {
 	enum {
@@ -40,14 +39,6 @@ struct PlayerInput {
 	bool quit;
 };
 
-struct ScalerParameters {
-	ScalerType type;
-	const Scaler *scaler;
-	int factor;
-
-	static ScalerParameters defaults();
-};
-
 struct SystemStub {
 	typedef void (*AudioCallback)(void *param, int16_t *stream, int len);
 
@@ -55,7 +46,7 @@ struct SystemStub {
 
 	virtual ~SystemStub() {}
 
-	virtual void init(const char *title, int w, int h, bool fullscreen, ScalerParameters *scalerParameters) = 0;
+	virtual void init(const char *title, int w, int h, bool fullscreen) = 0;
 	virtual void destroy() = 0;
 
 	virtual void setScreenSize(int w, int h) = 0;

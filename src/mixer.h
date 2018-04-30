@@ -56,7 +56,6 @@ struct Mixer {
 		MAX_VOLUME = 64
 	};
 
-	FileSystem *_fs;
 	SystemStub *_stub;
 	MixerChannel _channels[NUM_CHANNELS];
 	PremixHook _premixHook;

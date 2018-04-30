@@ -18,9 +18,10 @@ add_subdirectory(3rdparty/libmodplug)
 include_directories(src)
 
 set(BASE_SOURCES
+        src/intern.h
+        src/systemstub.h
         src/collision.cpp
         src/cutscene.cpp
-        src/dynlib.cpp
         src/file.cpp
         src/fs.cpp
         src/game.cpp
@@ -31,7 +32,6 @@ set(BASE_SOURCES
         src/piege.cpp
         src/resource.cpp
         src/resource_aba.cpp
-        src/scaler.cpp
         src/screenshot.cpp
         src/seq_player.cpp
         src/sfx_player.cpp
