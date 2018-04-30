@@ -260,16 +260,6 @@ void Graphics::drawSegment(uint8_t color, bool hasAlpha, int16_t ys, const Point
 	fillArea(color, hasAlpha);
 }
 
-void Graphics::drawPolygonOutline(uint8_t color, const Point *pts, uint8_t numPts) {
-	debug(DBG_VIDEO, "Graphics::drawPolygonOutline()");
-	assert(numPts >= 2);
-	int i;
-	for (i = 0; i < numPts - 1; ++i) {
-		drawLine(color, &pts[i], &pts[i + 1]);
-	}
-	drawLine(color, &pts[i], &pts[0]);
-}
-
 static int32_t calcPolyStep1(int16_t dx, int16_t dy) {
 	debug(DBG_VIDEO, "Graphics::calcPolyStep1()");
 	assert(dy != 0);

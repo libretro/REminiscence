@@ -119,7 +119,6 @@ uint16_t Cutscene::findTextSeparators(const uint8_t *p) {
 
 void Cutscene::drawText(int16_t x, int16_t y, const uint8_t *p, uint16_t color, uint8_t *page, uint8_t n) {
 	debug(DBG_CUT, "Cutscene::drawText(x=%d, y=%d, c=%d)", x, y, color);
-	Video::drawCharFunc dcf = _vid->_drawChar;
 	const uint8_t *fnt = (_res->_lang == LANG_JP) ? Video::_font8Jp : _res->_fnt;
 	uint16_t last_sep = 0;
 	if (n != 0) {
@@ -149,7 +148,7 @@ void Cutscene::drawText(int16_t x, int16_t y, const uint8_t *p, uint16_t color, 
 			// ignore tab
 		} else {
 			uint8_t *dst = page + 256 * yy + xx;
-			(_vid->*dcf)(dst, 256, fnt, color, *p);
+			_vid->PC_drawStringChar(dst, 256, fnt, color, *p);
 			xx += 8;
 		}
 	}
@@ -230,7 +229,7 @@ void Cutscene::op_waitForSync() {
 			_varText = 0xFF;
 			_frameDelay = 3;
 			if (_textBuf == _textCurBuf) {
-				_creditsTextCounter = _res->isAmiga() ? 60 : 20;
+				_creditsTextCounter = 20;
 			}
 			memcpy(_page1, _page0, _vid->_layerSize);
 			drawCreditsText();
@@ -348,7 +347,7 @@ void Cutscene::op_drawStringAtBottom() {
 
 		// 'espions' - ignore last call, allows caption to be displayed longer on the screen
 		if (_id == 0x39 && strId == 0xFFFF) {
-			if ((_res->isDOS() && (_cmdPtr - _cmdPtrBak) == 0x10) || (_res->isAmiga() && (_cmdPtr - _res->_cmd) == 0x9F3)) {
+			if ((_cmdPtr - _cmdPtrBak) == 0x10) {
 				_frameDelay = 100;
 				setPalette();
 				return;
@@ -928,35 +927,8 @@ void Cutscene::mainLoop(uint16_t offset) {
 void Cutscene::load(uint16_t cutName) {
 	assert(cutName != 0xFFFF);
 	const char *name = _namesTable[cutName & 0xFF];
-	switch (_res->_type) {
-	case kResourceTypeAmiga:
-		if (strncmp(name, "INTRO", 5) == 0) {
-			name = "INTRO";
-		}
-		_res->load(name, Resource::OT_CMP);
-		if (_id == 0x39 && _res->_lang != LANG_FR) {
-			//
-			// 'espions' - '... the power which we need' caption is missing in Amiga English.
-			// fixed in DOS version, opcodes order is wrong
-			//
-			// opcode 0 pos 0x323
-			// opcode 6 pos 0x324
-			// str 0x3a
-			//
-			uint8_t *p = _res->_cmd + 0x322;
-			if (memcmp(p, "\x00\x18\x00\x3a", 4) == 0) {
-				p[0] = 0x06 << 2; // op_drawStringAtBottom
-				p[1] = 0x00;
-				p[2] = 0x3a;
-				p[3] = 0x00; // op_markCurPos
-			}
-		}
-		break;
-	case kResourceTypeDOS:
-		_res->load(name, Resource::OT_CMD);
-		_res->load(name, Resource::OT_POL);
-		break;
-	}
+	_res->load(name, Resource::OT_CMD);
+	_res->load(name, Resource::OT_POL);
 	_res->load_CINE();
 }
 
@@ -974,7 +946,7 @@ void Cutscene::prepare() {
 }
 
 void Cutscene::playCredits() {
-	_textCurPtr = _res->isAmiga() ? _creditsDataAmiga : _creditsDataDOS;
+	_textCurPtr = _creditsDataDOS;
 	_textBuf[0] = 0xA;
 	_textCurBuf = _textBuf;
 	_creditsSequence = true;

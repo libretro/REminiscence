@@ -10,7 +10,6 @@
 
 Mixer::Mixer(FileSystem *fs, SystemStub *stub)
 	: _stub(stub), _musicType(MT_NONE), _mod(this, fs), _sfx(this) {
-	_musicTrack = -1;
 }
 
 void Mixer::init() {

@@ -113,7 +113,6 @@ struct Resource {
 	static const char *_splNames[];
 
 	FileSystem *_fs;
-	ResourceType _type;
 	Language _lang;
 	bool _isDemo;
 	ResourceAba *_aba;
@@ -163,22 +162,19 @@ struct Resource {
 	uint8_t *_dem;
 	int _demLen;
 
-	Resource(FileSystem *fs, ResourceType type, Language lang);
+	Resource(FileSystem *fs, Language lang);
 	~Resource();
 
 	void init();
 	void fini();
 
-	bool isDOS()   const { return _type == kResourceTypeDOS; }
-	bool isAmiga() const { return _type == kResourceTypeAmiga; }
-
 	void clearLevelRes();
 	void load_DEM(const char *filename);
 	void load_FIB(const char *fileName);
-	void load_SPL_demo();
+
 	void load_MAP_menu(const char *fileName, uint8_t *dstPtr);
 	void load_PAL_menu(const char *fileName, uint8_t *dstPtr);
-	void load_CMP_menu(const char *fileName, uint8_t *dstPtr);
+
 	void load_SPR_OFF(const char *fileName, uint8_t *sprData);
 	void load_CINE();
 	void load_TEXT();

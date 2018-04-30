@@ -193,13 +193,13 @@ int main(int argc, char *argv[]) {
 	g_debugMask = DBG_INFO; // DBG_CUT | DBG_VIDEO | DBG_RES | DBG_MENU | DBG_PGE | DBG_GAME | DBG_UNPACK | DBG_COL | DBG_MOD | DBG_SFX | DBG_FILE;
 	FileSystem fs(dataPath);
 	const int version = detectVersion(&fs);
-	if (version == -1) {
-		error("Unable to find data files, check that all required files are present");
+	if (version != kResourceTypeDOS) {
+		error("Unable to find DOS data files, check that all required files are present");
 		return -1;
 	}
 	const Language language = (forcedLanguage == -1) ? detectLanguage(&fs) : (Language)forcedLanguage;
 	SystemStub *stub = SystemStub_SDL_create();
-	Game *g = new Game(stub, &fs, savePath, levelNum, (ResourceType)version, language);
+	Game *g = new Game(stub, &fs, savePath, levelNum, language);
 	stub->init(g_caption, Video::GAMESCREEN_W, Video::GAMESCREEN_H, fullscreen);
 	g->init();
 	g->run();

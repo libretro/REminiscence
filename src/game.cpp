@@ -13,10 +13,10 @@
 #include "unpack.h"
 #include "util.h"
 
-Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, ResourceType ver, Language lang)
+Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, stub, &_vid), _menu(&_res, stub, &_vid),
-	_mix(fs, stub), _res(fs, ver, lang), _seq(stub, &_mix), _vid(&_res, stub),
-	_stub(stub), _fs(fs), _savePath(savePath) {
+	  _mix(fs, stub), _res(fs, lang), _seq(stub, &_mix), _vid(&_res, stub),
+	  _stub(stub), _fs(fs), _savePath(savePath) {
 	_stateSlot = 1;
 	_inp_demPos = 0;
 	_skillLevel = _menu._skill = 1;
@@ -30,82 +30,55 @@ void Game::init() {
 	_res.init();
 	_res.load_TEXT();
 
-	switch (_res._type) {
-		case kResourceTypeAmiga:
-			_res.load("FONT8", Resource::OT_FNT, "SPR");
-			if (_res._isDemo) {
-				_cut._patchedOffsetsTable = Cutscene::_amigaDemoOffsetsTable;
-			}
-			break;
-		case kResourceTypeDOS:
-			_res.load("FB_TXT", Resource::OT_FNT);
-			if (g_options.use_seq_cutscenes) {
-				_res._hasSeqData = _fs->exists("INTRO.SEQ");
-			}
-			if (_fs->exists("logosssi.cmd")) {
-				_cut._patchedOffsetsTable = Cutscene::_ssiOffsetsTable;
-			}
-			break;
+	_res.load("FB_TXT", Resource::OT_FNT);
+	if (g_options.use_seq_cutscenes) {
+		_res._hasSeqData = _fs->exists("INTRO.SEQ");
+	}
+	if (_fs->exists("logosssi.cmd")) {
+		_cut._patchedOffsetsTable = Cutscene::_ssiOffsetsTable;
 	}
 	_mix.init();
-	_mix._mod._isAmiga = _res.isAmiga();
+	_mix._mod._isAmiga = false;
 }
 
 void Game::run() {
 	playCutscene(0x40);
 	playCutscene(0x0D);
 
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		_res.load("ICONE", Resource::OT_ICN, "SPR");
-		_res.load("ICON", Resource::OT_ICN, "SPR");
-		_res.load("PERSO", Resource::OT_SPM);
-		break;
-	case kResourceTypeDOS:
-		_res.load("GLOBAL", Resource::OT_ICN);
-		_res.load("GLOBAL", Resource::OT_SPC);
-		_res.load("PERSO", Resource::OT_SPR);
-		_res.load_SPR_OFF("PERSO", _res._spr1);
-		_res.load_FIB("GLOBAL");
-		break;
-	}
+	_res.load("GLOBAL", Resource::OT_ICN);
+	_res.load("GLOBAL", Resource::OT_SPC);
+	_res.load("PERSO", Resource::OT_SPR);
+	_res.load_SPR_OFF("PERSO", _res._spr1);
+	_res.load_FIB("GLOBAL");
 
 	while (!_stub->_pi.quit) {
 		if (_res._isDemo) {
 			// do not present title screen and menus
 		} else {
 			_mix.playMusic(1);
-			switch (_res._type) {
-			case kResourceTypeDOS:
-				_menu.handleTitleScreen();
-				if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_QUIT || _stub->_pi.quit) {
-					_stub->_pi.quit = true;
-					break;
-				}
-				if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_DEMO) {
-					_demoBin = (_demoBin + 1) % ARRAYSIZE(_demoInputs);
-					const char *fn = _demoInputs[_demoBin].name;
-					debug(DBG_DEMO, "Loading inputs from '%s'", fn);
-					_res.load_DEM(fn);
-					if (_res._demLen == 0) {
-						continue;
-					}
-					_skillLevel = 1;
-					_currentLevel = _demoInputs[_demoBin].level;
-					_randSeed = 0;
-					_mix.stopMusic();
-					break;
-				}
-				_demoBin = -1;
-				_skillLevel = _menu._skill;
-				_currentLevel = _menu._level;
-				_mix.stopMusic();
-				break;
-			case kResourceTypeAmiga:
-				displayTitleScreenAmiga();
-				_stub->setScreenSize(Video::GAMESCREEN_W, Video::GAMESCREEN_H);
+			_menu.handleTitleScreen();
+			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_QUIT || _stub->_pi.quit) {
+				_stub->_pi.quit = true;
 				break;
 			}
+			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_DEMO) {
+				_demoBin = (_demoBin + 1) % ARRAYSIZE(_demoInputs);
+				const char *fn = _demoInputs[_demoBin].name;
+				debug(DBG_DEMO, "Loading inputs from '%s'", fn);
+				_res.load_DEM(fn);
+				if (_res._demLen == 0) {
+					continue;
+				}
+				_skillLevel = 1;
+				_currentLevel = _demoInputs[_demoBin].level;
+				_randSeed = 0;
+				_mix.stopMusic();
+				break;
+			}
+			_demoBin = -1;
+			_skillLevel = _menu._skill;
+			_currentLevel = _menu._level;
+			_mix.stopMusic();
 			if (_stub->_pi.quit) {
 				break;
 			}
@@ -145,49 +118,6 @@ void Game::run() {
 	_res.free_TEXT();
 	_mix.free();
 	_res.fini();
-}
-
-void Game::displayTitleScreenAmiga() {
-	static const char *FILENAME = "present.cmp";
-	_res.load_CMP_menu(FILENAME, _res._scratchBuffer);
-	static const int kW = 320;
-	static const int kH = 224;
-	uint8_t *buf = (uint8_t *)calloc(kW * kH, 1);
-	if (!buf) {
-		error("Failed to allocate screen buffer w=%d h=%d", kW, kH);
-	}
-	static const int kAmigaColors[] = {
-		0x000, 0x123, 0x012, 0x134, 0x433, 0x453, 0x046, 0x245,
-		0x751, 0x455, 0x665, 0x268, 0x961, 0x478, 0x677, 0x786,
-		0x17B, 0x788, 0xB84, 0xC92, 0x49C, 0xF00, 0x9A8, 0x9AA,
-		0xCA7, 0xEA3, 0x8BD, 0xBBB, 0xEC7, 0xBCD, 0xDDB, 0xEED
-	};
-	for (int i = 0; i < 32; ++i) {
-		Color c = Video::AMIGA_convertColor(kAmigaColors[i]);
-		_stub->setPaletteEntry(i, &c);
-	}
-	_stub->setScreenSize(kW, kH);
-	_stub->copyRect(0, 0, kW, kH, buf, kW);
-	_stub->updateScreen(0);
-	_vid.AMIGA_decodeCmp(_res._scratchBuffer + 6, buf);
-	free(buf);
-	for (int h = 0; h < kH / 2; h += 2) {
-		const int y = kH / 2 - h;
-		_stub->copyRect(0, y, kW, h * 2, buf, kW);
-		_stub->updateScreen(0);
-		_stub->sleep(30);
-	}
-	while (1) {
-		_stub->processEvents();
-		if (_stub->_pi.quit) {
-			break;
-		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
-			break;
-		}
-		_stub->sleep(30);
-	}
 }
 
 void Game::resetGameState() {
@@ -368,7 +298,7 @@ void Game::playCutscene(int id) {
 			_mix.playMusic(Cutscene::_musicTable[_cut._id]);
 		}
 		_cut.play();
-		if (id == 0xD && !_cut._interrupted && _res.isDOS()) {
+		if (id == 0xD && !_cut._interrupted) {
 			_cut._id = 0x4A;
 			_cut.play();
 		}
@@ -440,9 +370,6 @@ void Game::showFinalScore() {
 }
 
 bool Game::handleConfigPanel() {
-	if (_res.isAmiga()) {
-		return true;
-	}
 	const int x = 7;
 	const int y = 10;
 	const int w = 17;
@@ -625,13 +552,6 @@ void Game::printLevelCode() {
 		if (_printLevelCodeCounter != 0) {
 			char buf[32];
 			const char *code = Menu::_passwords[_currentLevel][_skillLevel];
-			if (_res.isAmiga()) {
-				if (_res._lang == LANG_FR) {
-					code = Menu::_passwordsFrAmiga[_skillLevel * 7 + _currentLevel];
-				} else {
-					code = Menu::_passwordsEnAmiga[_skillLevel * 7 + _currentLevel];
-				}
-			}
 			snprintf(buf, sizeof(buf), "CODE: %s", code);
 			_vid.drawString(buf, (_vid._w - strlen(buf) * 8) / 2, 16, 0xE7);
 		}
@@ -810,17 +730,9 @@ void Game::prepareAnimsHelper(LivePGE *pge, int16_t dx, int16_t dy) {
 		const int8_t dw = (int8_t)dataPtr[0];
 		const int8_t dh = (int8_t)dataPtr[1];
 		uint8_t w = 0, h = 0;
-		switch (_res._type) {
-		case kResourceTypeAmiga:
-			w = ((dataPtr[2] >> 7) + 1) * 16;
-			h = dataPtr[2] & 0x7F;
-			break;
-		case kResourceTypeDOS:
-			w = dataPtr[2];
-			h = dataPtr[3];
-			dataPtr += 4;
-			break;
-		}
+		w = dataPtr[2];
+		h = dataPtr[3];
+		dataPtr += 4;
 		const int16_t ypos = dy + pge->pos_y - dh + 2;
 		int16_t xpos = dx + pge->pos_x - dw;
 		if (pge->flags & 2) {
@@ -884,19 +796,11 @@ void Game::drawAnimBuffer(uint8_t stateNum, AnimBufferState *state) {
 				if (stateNum == 1 && (_blinkingConradCounter & 1)) {
 					break;
 				}
-				switch (_res._type) {
-				case kResourceTypeAmiga:
-					_vid.AMIGA_decodeSpm(state->dataPtr, _res._scratchBuffer);
+				if (!(state->dataPtr[-2] & 0x80)) {
+					decodeCharacterFrame(state->dataPtr, _res._scratchBuffer);
 					drawCharacter(_res._scratchBuffer, state->x, state->y, state->h, state->w, pge->flags);
-					break;
-				case kResourceTypeDOS:
-					if (!(state->dataPtr[-2] & 0x80)) {
-						decodeCharacterFrame(state->dataPtr, _res._scratchBuffer);
-						drawCharacter(_res._scratchBuffer, state->x, state->y, state->h, state->w, pge->flags);
-					} else {
-						drawCharacter(state->dataPtr, state->x, state->y, state->h, state->w, pge->flags);
-					}
-					break;
+				} else {
+					drawCharacter(state->dataPtr, state->x, state->y, state->h, state->w, pge->flags);
 				}
 			} else {
 				drawObject(state->dataPtr, state->x, state->y, pge->flags);
@@ -922,16 +826,8 @@ void Game::drawObject(const uint8_t *dataPtr, int16_t x, int16_t y, uint8_t flag
 		posx -= (int8_t)dataPtr[1];
 	}
 	int count = 0;
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		count = dataPtr[8];
-		dataPtr += 9;
-		break;
-	case kResourceTypeDOS:
-		count = dataPtr[5];
-		dataPtr += 6;
-		break;
-	}
+	count = dataPtr[5];
+	dataPtr += 6;
 	for (int i = 0; i < count; ++i) {
 		drawObjectFrame(data, dataPtr, posx, posy, flags);
 		dataPtr += 4;
@@ -958,14 +854,7 @@ void Game::drawObjectFrame(const uint8_t *bankDataPtr, const uint8_t *dataPtr, i
 	uint8_t sprite_h = (((sprite_flags >> 0) & 3) + 1) * 8;
 	uint8_t sprite_w = (((sprite_flags >> 2) & 3) + 1) * 8;
 
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		_vid.AMIGA_decodeSpc(src, sprite_w, sprite_h, _res._scratchBuffer);
-		break;
-	case kResourceTypeDOS:
-		_vid.PC_decodeSpc(src, sprite_w, sprite_h, _res._scratchBuffer);
-		break;
-	}
+	_vid.PC_decodeSpc(src, sprite_w, sprite_h, _res._scratchBuffer);
 
 	src = _res._scratchBuffer;
 	bool sprite_mirror_x = false;
@@ -1196,19 +1085,10 @@ int Game::loadMonsterSprites(LivePGE *pge) {
 	_curMonsterFrame = mList[0];
 	if (_curMonsterNum != mList[1]) {
 		_curMonsterNum = mList[1];
-		if (_res.isAmiga()) {
-			_res.load(_monsterNames[1][_curMonsterNum], Resource::OT_SPM);
-			static const uint8_t tab[4] = { 0, 8, 0, 8 };
-			const int offset = _vid._mapPalSlot3 * 16 + tab[_curMonsterNum];
-			for (int i = 0; i < 8; ++i) {
-				_vid.setPaletteColorBE(0x50 + i, offset + i);
-			}
-		} else {
-			const char *name = _monsterNames[0][_curMonsterNum];
-			_res.load(name, Resource::OT_SPRM);
-			_res.load_SPR_OFF(name, _res._sprm);
-			_vid.setPaletteSlotLE(5, _monsterPals[_curMonsterNum]);
-		}
+		const char *name = _monsterNames[0][_curMonsterNum];
+		_res.load(name, Resource::OT_SPRM);
+		_res.load_SPR_OFF(name, _res._sprm);
+		_vid.setPaletteSlotLE(5, _monsterPals[_curMonsterNum]);
 	}
 	return 0xFFFF;
 }
@@ -1225,112 +1105,26 @@ bool Game::hasLevelMap(int level, int room) const {
 void Game::loadLevelMap() {
 	debug(DBG_GAME, "Game::loadLevelMap() room=%d", _currentRoom);
 	_currentIcon = 0xFF;
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		if (_currentLevel == 1) {
-			int num = 0;
-			switch (_currentRoom) {
-			case 14:
-			case 19:
-			case 52:
-			case 53:
-				num = 1;
-				break;
-			case 11:
-			case 24:
-			case 27:
-			case 56:
-				num = 2;
-				break;
-			}
-			if (num != 0 && _res._levNum != num) {
-				char name[9];
-				snprintf(name, sizeof(name), "level2_%d", num);
-				_res.load(name, Resource::OT_LEV);
-				_res._levNum = num;
-			}
-		}
-		_vid.AMIGA_decodeLev(_currentLevel, _currentRoom);
-		break;
-	case kResourceTypeDOS:
-		if (_res._map) {
-			_vid.PC_decodeMap(_currentLevel, _currentRoom);
-		} else if (_res._lev) {
-			_vid.PC_decodeLev(_currentLevel, _currentRoom);
-		}
-		_vid.PC_setLevelPalettes();
-		break;
+	if (_res._map) {
+		_vid.PC_decodeMap(_currentLevel, _currentRoom);
+	} else if (_res._lev) {
+		_vid.PC_decodeLev(_currentLevel, _currentRoom);
 	}
+	_vid.PC_setLevelPalettes();
 }
 
 void Game::loadLevelData() {
 	_res.clearLevelRes();
 	const Level *lvl = &_gameLevels[_currentLevel];
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		if (_res._isDemo) {
-			static const char *fname1 = "demo";
-			static const char *fname2 = "demof";
-			_res.load(fname1, Resource::OT_MBK);
-			_res.load(fname1, Resource::OT_CT);
-			_res.load(fname1, Resource::OT_PAL);
-			_res.load(fname1, Resource::OT_RPC);
-			_res.load(fname1, Resource::OT_SPC);
-			_res.load(fname1, Resource::OT_LEV);
-			_res.load(fname2, Resource::OT_PGE);
-			_res.load(fname1, Resource::OT_OBJ);
-			_res.load(fname1, Resource::OT_ANI);
-			_res.load(fname2, Resource::OT_TBN);
-			_res.load_SPL_demo();
-			_res.load("level1", Resource::OT_SGD);
-			break;
-		}
-		{
-			const char *name = lvl->nameAmiga;
-			if (_currentLevel == 4) {
-				name = _gameLevels[3].nameAmiga;
-			}
-			_res.load(name, Resource::OT_MBK);
-			if (_currentLevel == 6) {
-				_res.load(_gameLevels[5].nameAmiga, Resource::OT_CT);
-			} else {
-				_res.load(name, Resource::OT_CT);
-			}
-			_res.load(name, Resource::OT_PAL);
-			_res.load(name, Resource::OT_RPC);
-			_res.load(name, Resource::OT_SPC);
-			if (_currentLevel == 1) {
-				_res.load("level2_1", Resource::OT_LEV);
-				_res._levNum = 1;
-			} else {
-				_res.load(name, Resource::OT_LEV);
-			}
-		}
-		_res.load(lvl->nameAmiga, Resource::OT_PGE);
-		_res.load(lvl->nameAmiga, Resource::OT_OBC);
-		_res.load(lvl->nameAmiga, Resource::OT_ANI);
-		_res.load(lvl->nameAmiga, Resource::OT_TBN);
-		{
-			char name[8];
-			snprintf(name, sizeof(name), "level%d", lvl->sound);
-			_res.load(name, Resource::OT_SPL);
-		}
-		if (_currentLevel == 0) {
-			_res.load(lvl->nameAmiga, Resource::OT_SGD);
-		}
-		break;
-	case kResourceTypeDOS:
-		_res.load(lvl->name, Resource::OT_MBK);
-		_res.load(lvl->name, Resource::OT_CT);
-		_res.load(lvl->name, Resource::OT_PAL);
-		_res.load(lvl->name, Resource::OT_RP);
-		_res.load(lvl->name, Resource::OT_MAP);
-		_res.load(lvl->name2, Resource::OT_PGE);
-		_res.load(lvl->name2, Resource::OT_OBJ);
-		_res.load(lvl->name2, Resource::OT_ANI);
-		_res.load(lvl->name2, Resource::OT_TBN);
-		break;
-	}
+	_res.load(lvl->name, Resource::OT_MBK);
+	_res.load(lvl->name, Resource::OT_CT);
+	_res.load(lvl->name, Resource::OT_PAL);
+	_res.load(lvl->name, Resource::OT_RP);
+	_res.load(lvl->name, Resource::OT_MAP);
+	_res.load(lvl->name2, Resource::OT_PGE);
+	_res.load(lvl->name2, Resource::OT_OBJ);
+	_res.load(lvl->name2, Resource::OT_ANI);
+	_res.load(lvl->name2, Resource::OT_TBN);
 
 	_cut._id = lvl->cutscene_id;
 	if (_res._isDemo && _currentLevel == 5) { // PC demo does not include TELEPORT.*
@@ -1382,38 +1176,7 @@ void Game::loadLevelData() {
 
 void Game::drawIcon(uint8_t iconNum, int16_t x, int16_t y, uint8_t colMask) {
 	uint8_t buf[16 * 16];
-	switch (_res._type) {
-	case kResourceTypeAmiga:
-		if (iconNum > 30) {
-			// inventory icons
-			switch (iconNum) {
-			case 76: // cursor
-				memset(buf, 0, 16 * 16);
-				for (int i = 0; i < 3; ++i) {
-					buf[i] = buf[15 * 16 + (15 - i)] = 1;
-					buf[i * 16] = buf[(15 - i) * 16 + 15] = 1;
-				}
-				break;
-			case 77: // up - icon.spr 4
-				memset(buf, 0, 16 * 16);
-				_vid.AMIGA_decodeIcn(_res._icn, 35, buf);
-				break;
-			case 78: // down - icon.spr 5
-				memset(buf, 0, 16 * 16);
-				_vid.AMIGA_decodeIcn(_res._icn, 36, buf);
-				break;
-			default:
-				memset(buf, 5, 16 * 16);
-				break;
-			}
-		} else {
-			_vid.AMIGA_decodeIcn(_res._icn, iconNum, buf);
-		}
-		break;
-	case kResourceTypeDOS:
-		_vid.PC_decodeIcn(_res._icn, iconNum, buf);
-		break;
-	}
+	_vid.PC_decodeIcn(_res._icn, iconNum, buf);
 	_vid.drawSpriteSub1(buf, _vid._frontLayer + x + y * 256, 16, 16, 16, colMask << 4);
 	_vid.markBlockAsDirty(x, y, 16, 16);
 }
@@ -1425,7 +1188,7 @@ void Game::playSound(uint8_t sfxId, uint8_t softVol) {
 			MixerChunk mc;
 			mc.data = sfx->data;
 			mc.len = sfx->len;
-			const int freq = _res.isAmiga() ? 3546897 / 650 : 6000;
+			const int freq = 6000;
 			_mix.play(&mc, freq, Mixer::MAX_VOLUME >> softVol);
 		}
 	} else {
@@ -1489,18 +1252,6 @@ void Game::handleInventory() {
 				} while (--icon_w);
 				icon_y += icon_spr_h;
 			} while (--icon_h);
-			if (_res._type == kResourceTypeAmiga) {
-				// draw outline rectangle
-				static const uint8_t outline_color = 0xE7;
-				uint8_t *p = _vid._frontLayer + 140 * Video::GAMESCREEN_W + 56;
-				memset(p + 1, outline_color, 9 * icon_spr_w - 2);
-				p += Video::GAMESCREEN_W;
-				for (int y = 1; y < 5 * icon_spr_h - 1; ++y) {
-					p[0] = p[9 * icon_spr_w - 1] = outline_color;
-					p += Video::GAMESCREEN_W;
-				}
-				memset(p + 1, outline_color, 9 * icon_spr_w - 2);
-			}
 
 			if (!display_score) {
 				int icon_x_pos = 72;

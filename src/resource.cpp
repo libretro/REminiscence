@@ -10,15 +10,14 @@
 #include "unpack.h"
 #include "util.h"
 
-Resource::Resource(FileSystem *fs, ResourceType ver, Language lang) {
+Resource::Resource(FileSystem *fs, Language lang) {
 	memset(this, 0, sizeof(Resource));
 	_fs = fs;
-	_type = ver;
 	_lang = lang;
 	_isDemo = false;
 	_aba = 0;
-	_readUint16 = (_type == kResourceTypeDOS) ? READ_LE_UINT16 : READ_BE_UINT16;
-	_readUint32 = (_type == kResourceTypeDOS) ? READ_LE_UINT32 : READ_BE_UINT32;
+	_readUint16 = READ_LE_UINT16;
+	_readUint32 = READ_LE_UINT32;
 	_scratchBuffer = (uint8_t *)malloc(320 * 224 + 1024);
 	if (!_scratchBuffer) {
 		error("Unable to allocate temporary memory buffer");
@@ -54,17 +53,10 @@ Resource::~Resource() {
 }
 
 void Resource::init() {
-	switch (_type) {
-	case kResourceTypeAmiga:
-		_isDemo = _fs->exists("demo.lev");
-		break;
-	case kResourceTypeDOS:
-		if (_fs->exists(ResourceAba::FILENAME)) {
-			_aba = new ResourceAba(_fs);
-			_aba->readEntries();
-			_isDemo = true;
-		}
-		break;
+	if (_fs->exists(ResourceAba::FILENAME)) {
+		_aba = new ResourceAba(_fs);
+		_aba->readEntries();
+		_isDemo = true;
 	}
 }
 
@@ -150,27 +142,6 @@ void Resource::load_FIB(const char *fileName) {
 	}
 }
 
-void Resource::load_SPL_demo() {
-	_numSfx = NUM_SFXS;
-	_sfxList = (SoundFx *)calloc(_numSfx, sizeof(SoundFx));
-	if (!_sfxList) {
-		return;
-	}
-	for (int i = 0; _splNames[i] && i < NUM_SFXS; ++i) {
-		File f;
-		if (f.open(_splNames[i], "rb", _fs)) {
-			SoundFx *sfx = &_sfxList[i];
-			const int size = f.size();
-			sfx->data = (uint8_t *)malloc(size);
-			if (sfx->data) {
-				f.read(sfx->data, size);
-				sfx->offset = 0;
-				sfx->len = size;
-			}
-		}
-	}
-}
-
 void Resource::load_MAP_menu(const char *fileName, uint8_t *dstPtr) {
 	debug(DBG_RES, "Resource::load_MAP_menu('%s')", fileName);
 	static const int kMenuMapSize = 0x3800 * 4;
@@ -227,24 +198,6 @@ void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
 	error("Cannot load '%s'", _entryName);
 }
 
-void Resource::load_CMP_menu(const char *fileName, uint8_t *dstPtr) {
-	File f;
-	if (f.open(fileName, "rb", _fs)) {
-		const uint32_t size = f.readUint32BE();
-		uint8_t *tmp = (uint8_t *)malloc(size);
-		if (!tmp) {
-			error("Failed to allocate CMP temporary buffer");
-		}
-		f.read(tmp, size);
-		if (!delphine_unpack(dstPtr, tmp, size)) {
-			error("Bad CRC for %s", fileName);
-		}
-                free(tmp);
-		return;
-	}
-	error("Cannot load '%s'", fileName);
-}
-
 void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
 	debug(DBG_RES, "Resource::load_SPR_OFF('%s')", fileName);
 	snprintf(_entryName, sizeof(_entryName), "%s.OFF", fileName);
@@ -282,12 +235,9 @@ void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
 	error("Cannot load '%s'", _entryName);
 }
 
-static const char *getCineName(Language lang, ResourceType type) {
+static const char *getCineName(Language lang) {
 	switch (lang) {
 	case LANG_FR:
-		if (type == kResourceTypeAmiga) {
-			return "FR";
-		}
 		return "FR_";
 	case LANG_DE:
 		return "GER";
@@ -302,43 +252,8 @@ static const char *getCineName(Language lang, ResourceType type) {
 }
 
 void Resource::load_CINE() {
-	const char *prefix = getCineName(_lang, _type);
+	const char *prefix = getCineName(_lang);
 	debug(DBG_RES, "Resource::load_CINE('%s')", prefix);
-	if (_type == kResourceTypeAmiga) {
-		if (_isDemo) {
-			// file not present in demo data files
-			return;
-		}
-		if (_cine_txt == 0) {
-			snprintf(_entryName, sizeof(_entryName), "%sCINE.TXT", prefix);
-			File f;
-			if (f.open(_entryName, "rb", _fs)) {
-				const int len = f.size();
-				_cine_txt = (uint8_t *)malloc(len + 1);
-				if (!_cine_txt) {
-					error("Unable to allocate cinematics text data");
-				}
-				f.read(_cine_txt, len);
-				if (f.ioErr()) {
-					error("I/O error when reading '%s'", _entryName);
-				}
-				_cine_txt[len] = 0;
-				uint8_t *p = _cine_txt;
-				for (int i = 0; i < NUM_CUTSCENE_TEXTS; ++i) {
-					_cineStrings[i] = p;
-					uint8_t *sep = (uint8_t *)memchr(p, '\n', &_cine_txt[len] - p);
-					if (!sep) {
-						break;
-					}
-					p = sep + 1;
-				}
-			}
-			if (!_cine_txt) {
-				error("Cannot load '%s'", _entryName);
-			}
-		}
-		return;
-	}
 	if (_cine_off == 0) {
 		snprintf(_entryName, sizeof(_entryName), "%sCINE.BIN", prefix);
 		File f;
@@ -432,7 +347,7 @@ void Resource::free_TEXT() {
 	_textsTable = 0;
 }
 
-static const char *getTextBin(Language lang, ResourceType type) {
+static const char *getTextBin(Language lang) {
 	// FB PC-CD version has language specific files
 	// .TBN is used as fallback if open fails
 	switch (lang) {
@@ -511,7 +426,7 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 		loadStub = &Resource::load_ANI;
 		break;
 	case OT_TBN:
-		snprintf(_entryName, sizeof(_entryName), "%s.%s", objName, getTextBin(_lang, _type));
+		snprintf(_entryName, sizeof(_entryName), "%s.%s", objName, getTextBin(_lang));
 		if (!_fs->exists(_entryName)) {
 			snprintf(_entryName, sizeof(_entryName), "%s.TBN", objName);
 		}
@@ -749,17 +664,6 @@ void Resource::load_MAP(File *f) {
 
 void Resource::load_OBJ(File *f) {
 	debug(DBG_RES, "Resource::load_OBJ()");
-	if (_type == kResourceTypeAmiga) { // demo has uncompressed objects data
-		const int size = f->size();
-		uint8_t *buf = (uint8_t *)malloc(size);
-		if (!buf) {
-			error("Unable to allocate OBJ buffer");
-		} else {
-			f->read(buf, size);
-			decodeOBJ(buf, size);
-		}
-		return;
-	}
 	_numObjectNodes = f->readUint16LE();
 	assert(_numObjectNodes < 255);
 	uint32_t offsets[256];
@@ -907,17 +811,6 @@ void Resource::decodeOBJ(const uint8_t *tmp, int size) {
 
 void Resource::load_PGE(File *f) {
 	debug(DBG_RES, "Resource::load_PGE()");
-	if (_type == kResourceTypeAmiga) {
-		const int size = f->size();
-		uint8_t *tmp = (uint8_t *)malloc(size);
-		if (!tmp) {
-			error("Unable to allocate PGE temporary buffer");
-		}
-		f->read(tmp, size);
-		decodePGE(tmp, size);
-		free(tmp);
-		return;
-	}
 	_pgeNum = f->readUint16LE();
 	memset(_pgeInit, 0, sizeof(_pgeInit));
 	debug(DBG_RES, "_pgeNum=%d", _pgeNum);
@@ -1157,33 +1050,14 @@ void Resource::load_LEV(File *f) {
 
 void Resource::load_SGD(File *f) {
 	const int len = f->size();
-	if (_type == kResourceTypeDOS) {
-		_sgd = (uint8_t *)malloc(len);
-		if (!_sgd) {
-			error("Unable to allocate SGD buffer");
-		} else {
-			f->read(_sgd, len);
-			// first byte == number of entries, clear to fix up 32 bits offset
-			_sgd[0] = 0;
-		}
-		return;
-	}
-	f->seek(len - 4);
-	int size = f->readUint32BE();
-	f->seek(0);
-	uint8_t *tmp = (uint8_t *)malloc(len);
-	if (!tmp) {
-		error("Unable to allocate SGD temporary buffer");
-	}
-	f->read(tmp, len);
-	_sgd = (uint8_t *)malloc(size);
+	_sgd = (uint8_t *)malloc(len);
 	if (!_sgd) {
 		error("Unable to allocate SGD buffer");
+	} else {
+		f->read(_sgd, len);
+		// first byte == number of entries, clear to fix up 32 bits offset
+		_sgd[0] = 0;
 	}
-	if (!delphine_unpack(_sgd, tmp, len)) {
-		error("Bad CRC for SGD data");
-	}
-	free(tmp);
 }
 
 void Resource::load_BNQ(File *f) {
@@ -1239,21 +1113,12 @@ void Resource::clearBankData() {
 
 int Resource::getBankDataSize(uint16_t num) {
 	int len = READ_BE_UINT16(_mbk + num * 6 + 4);
-	switch (_type) {
-	case kResourceTypeAmiga:
-		if (len & 0x8000) {
+	if (len & 0x8000) {
+		if (_mbk == _bnq) { // demo .bnq use signed int
 			len = -(int16_t)len;
-		}
-		break;
-	case kResourceTypeDOS:
-		if (len & 0x8000) {
-			if (_mbk == _bnq) { // demo .bnq use signed int
-				len = -(int16_t)len;
-				break;
-			}
+		} else {
 			len &= 0x7FFF;
 		}
-		break;
 	}
 	return len * 32;
 }
@@ -1270,11 +1135,7 @@ uint8_t *Resource::findBankData(uint16_t num) {
 uint8_t *Resource::loadBankData(uint16_t num) {
 	const uint8_t *ptr = _mbk + num * 6;
 	int dataOffset = READ_BE_UINT32(ptr);
-	if (_type == kResourceTypeDOS) {
-		// first byte of the data buffer corresponds
-		// to the total count of entries
-		dataOffset &= 0xFFFF;
-	}
+	dataOffset &= 0xFFFF;
 	const int size = getBankDataSize(num);
 	const int avail = _bankDataTail - _bankDataHead;
 	if (avail < size) {

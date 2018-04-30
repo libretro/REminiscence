@@ -47,7 +47,6 @@ struct Video {
 	uint8_t *_screenBlocks;
 	bool _fullRefresh;
 	uint8_t _shakeOffset;
-	drawCharFunc _drawChar;
 
 	Video(Resource *res, SystemStub *stub);
 	~Video();
@@ -57,7 +56,7 @@ struct Video {
 	void fullRefresh();
 	void fadeOut();
 	void fadeOutPalette();
-	void setPaletteColorBE(int num, int offset);
+
 	void setPaletteSlotBE(int palSlot, int palNum);
 	void setPaletteSlotLE(int palSlot, const uint8_t *palData);
 	void setTextPalette();
@@ -68,10 +67,7 @@ struct Video {
 	void PC_decodeIcn(const uint8_t *src, int num, uint8_t *dst);
 	void PC_decodeSpc(const uint8_t *src, int w, int h, uint8_t *dst);
 	void AMIGA_decodeLev(int level, int room);
-	void AMIGA_decodeSpm(const uint8_t *src, uint8_t *dst);
-	void AMIGA_decodeIcn(const uint8_t *src, int num, uint8_t *dst);
-	void AMIGA_decodeSpc(const uint8_t *src, int w, int h, uint8_t *dst);
-	void AMIGA_decodeCmp(const uint8_t *src, uint8_t *dst);
+
 	void drawSpriteSub1(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
 	void drawSpriteSub2(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
 	void drawSpriteSub3(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
@@ -80,7 +76,7 @@ struct Video {
 	void drawSpriteSub6(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
 	void PC_drawChar(uint8_t c, int16_t y, int16_t x, bool forceDefaultFont = false);
 	void PC_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8_t color, uint8_t chr);
-	void AMIGA_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8_t color, uint8_t chr);
+
 	const char *drawString(const char *str, int16_t x, int16_t y, uint8_t col);
 	static Color AMIGA_convertColor(const uint16_t color, bool bgr = false);
 };

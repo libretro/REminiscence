@@ -30,15 +30,12 @@ struct Cutscene {
 	static const OpcodeStub _opcodeTable[];
 	static const char *_namesTable[];
 	static const uint16_t _offsetsTable[];
-	static const uint8_t _amigaDemoOffsetsTable[];
 	static const uint8_t _ssiOffsetsTable[];
 	static const uint16_t _cosTable[];
 	static const uint16_t _sinTable[];
 	static const uint8_t _creditsDataDOS[];
-	static const uint8_t _creditsDataAmiga[];
 	static const uint16_t _creditsCutSeq[];
 	static const uint8_t _musicTable[];
-	static const uint8_t _protectionShapeData[];
 	static const Text _frTextsTable[];
 	static const Text _enTextsTable[];
 

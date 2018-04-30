@@ -25,15 +25,6 @@ Video::Video(Resource *res, SystemStub *stub)
 	_charFrontColor = 0;
 	_charTransparentColor = 0;
 	_charShadowColor = 0;
-	_drawChar = 0;
-	switch (_res->_type) {
-	case kResourceTypeAmiga:
-		_drawChar = &Video::AMIGA_drawStringChar;
-		break;
-	case kResourceTypeDOS:
-		_drawChar = &Video::PC_drawStringChar;
-		break;
-	}
 }
 
 Video::~Video() {
@@ -61,7 +52,7 @@ void Video::markBlockAsDirty(int16_t x, int16_t y, uint16_t w, uint16_t h) {
 
 void Video::updateScreen() {
 	debug(DBG_VIDEO, "Video::updateScreen()");
-//	_fullRefresh = true;
+	_fullRefresh = true;
 	if (_fullRefresh) {
 		_stub->copyRect(0, 0, _w, _h, _frontLayer, 256);
 		_stub->updateScreen(_shakeOffset);
@@ -131,12 +122,6 @@ void Video::fadeOutPalette() {
 	}
 }
 
-void Video::setPaletteColorBE(int num, int offset) {
-	const int color = READ_BE_UINT16(_res->_pal + offset * 2);
-	Color c = AMIGA_convertColor(color, true);
-	_stub->setPaletteEntry(num, &c);
-}
-
 void Video::setPaletteSlotBE(int palSlot, int palNum) {
 	debug(DBG_VIDEO, "Video::setPaletteSlotBE()");
 	const uint8_t *p = _res->_pal + palNum * 0x20;
@@ -159,12 +144,6 @@ void Video::setPaletteSlotLE(int palSlot, const uint8_t *palData) {
 void Video::setTextPalette() {
 	debug(DBG_VIDEO, "Video::setTextPalette()");
 	setPaletteSlotLE(0xE, _textPal);
-	if (_res->isAmiga()) {
-		Color c;
-		c.r = c.g = 0xEE;
-		c.b = 0;
-		_stub->setPaletteEntry(0xE7, &c);
-	}
 }
 
 void Video::setPalette0xF() {
@@ -289,101 +268,6 @@ void Video::PC_decodeSpc(const uint8_t *src, int w, int h, uint8_t *dst) {
 	}
 }
 
-static void AMIGA_planar16(uint8_t *dst, int w, int h, int depth, const uint8_t *src) {
-	const int pitch = w * 16;
-	const int planarSize = w * 2 * h;
-	for (int y = 0; y < h; ++y) {
-		for (int x = 0; x < w; ++x) {
-			for (int i = 0; i < 16; ++i) {
-				int color = 0;
-				const int mask = 1 << (15 - i);
-				for (int bit = 0; bit < depth; ++bit) {
-					if (READ_BE_UINT16(src + bit * planarSize) & mask) {
-						color |= 1 << bit;
-					}
-				}
-				dst[x * 16 + i] = color;
-			}
-			src += 2;
-		}
-		dst += pitch;
-	}
-}
-
-static void AMIGA_planar8(uint8_t *dst, int w, int h, const uint8_t *src) {
-	assert(w == 8);
-	for (int y = 0; y < h; ++y) {
-		for (int i = 0; i < 8; ++i) {
-			int color = 0;
-			const int mask = 1 << (7 - i);
-			for (int bit = 0; bit < 4; ++bit) {
-				if (src[bit] & mask) {
-					color |= 1 << bit;
-				}
-			}
-			dst[i] = color;
-		}
-		src += 4;
-		dst += w;
-	}
-}
-
-static void AMIGA_planar24(uint8_t *dst, int w, int h, const uint8_t *src) {
-	assert(w == 24);
-	for (int y = 0; y < h; ++y) {
-		for (int i = 0; i < 16; ++i) {
-			int color = 0;
-			const int mask = 1 << (15 - i);
-			for (int bit = 0; bit < 4; ++bit) {
-				if (READ_BE_UINT16(src + bit * 2) & mask) {
-					color |= 1 << bit;
-				}
-			}
-			dst[i] = color;
-		}
-		src += 8;
-		for (int i = 0; i < 8; ++i) {
-			int color = 0;
-			const int mask = 1 << (7 - i);
-			for (int bit = 0; bit < 4; ++bit) {
-				if (src[bit] & mask) {
-					color |= 1 << bit;
-				}
-			}
-			dst[16 + i] = color;
-		}
-		src += 4;
-		dst += w;
-	}
-}
-
-static void AMIGA_planar_mask(uint8_t *dst, int x0, int y0, int w, int h, uint8_t *src, uint8_t *mask, int size) {
-	dst += y0 * 256 + x0;
-	for (int y = 0; y < h; ++y) {
-		for (int x = 0; x < w * 2; ++x) {
-			for (int i = 0; i < 8; ++i) {
-				const int c_mask = 1 << (7 - i);
-				int color = 0;
-				for (int j = 0; j < 4; ++j) {
-					if (mask[j * size] & c_mask) {
-						color |= 1 << j;
-					}
-				}
-				if (*src & c_mask) {
-					const int px = x0 + 8 * x + i;
-					const int py = y0 + y;
-					if (px >= 0 && px < 256 && py >= 0 && py < 224) {
-						dst[8 * x + i] = color;
-					}
-				}
-			}
-			++src;
-			++mask;
-		}
-		dst += 256;
-	}
-}
-
 static void AMIGA_decodeRle(uint8_t *dst, const uint8_t *src) {
 	const int size = READ_BE_UINT16(src) & 0x7FFF; src += 2;
 	for (int i = 0; i < size; ) {
@@ -427,7 +311,7 @@ static void PC_drawTileMask(uint8_t *dst, int x0, int y0, int w, int h, uint8_t 
 	}
 }
 
-static void decodeSgd(uint8_t *dst, const uint8_t *src, const uint8_t *data, const bool isAmiga) {
+static void decodeSgd(uint8_t *dst, const uint8_t *src, const uint8_t *data) {
 	int num = -1;
 	uint8_t buf[256 * 32];
 	int count = READ_BE_UINT16(src) - 1; src += 2;
@@ -458,65 +342,8 @@ static void decodeSgd(uint8_t *dst, const uint8_t *src, const uint8_t *data, con
 		const int w = (buf[0] + 1) >> 1;
 		const int h = buf[1] + 1;
 		const int planarSize = READ_BE_UINT16(buf + 2);
-		if (isAmiga) {
-			AMIGA_planar_mask(dst, (int16_t)d0, (int16_t)d1, w, h, buf + 4, buf + 4 + planarSize, planarSize);
-		} else {
-			PC_drawTileMask(dst, (int16_t)d0, (int16_t)d1, w, h, buf + 4, buf + 4 + planarSize, planarSize);
-		}
+		PC_drawTileMask(dst, (int16_t)d0, (int16_t)d1, w, h, buf + 4, buf + 4 + planarSize, planarSize);
 	} while (--count >= 0);
-}
-
-static const uint8_t *AMIGA_mirrorTileY(const uint8_t *a2) {
-	static uint8_t buf[32];
-
-        a2 += 24;
-	for (int j = 0; j < 4; ++j) {
-		for (int i = 0; i < 8; ++i) {
-			buf[31 - j * 8 - i] = *a2++;
-		}
-		a2 -= 16;
-	}
-	return buf;
-}
-
-static const uint8_t *AMIGA_mirrorTileX(const uint8_t *a2) {
-	static uint8_t buf[32];
-
-	for (int i = 0; i < 32; ++i) {
-		uint8_t mask = 0;
-		for (int bit = 0; bit < 8; ++bit) {
-			if (a2[i] & (1 << bit)) {
-				mask |= 1 << (7 - bit);
-			}
-		}
-		buf[i] = mask;
-	}
-	return buf;
-}
-
-static void AMIGA_drawTile(uint8_t *dst, int pitch, const uint8_t *src, int pal, const bool xflip, const bool yflip, int colorKey) {
-	if (yflip) {
-		src = AMIGA_mirrorTileY(src);
-	}
-	if (xflip) {
-		src = AMIGA_mirrorTileX(src);
-	}
-	for (int y = 0; y < 8; ++y) {
-		for (int i = 0; i < 8; ++i) {
-			const int mask = 1 << (7 - i);
-			int color = 0;
-			for (int bit = 0; bit < 4; ++bit) {
-				if (src[8 * bit] & mask) {
-					color |= 1 << bit;
-				}
-			}
-			if (color != colorKey) {
-				dst[i] = pal + color;
-			}
-		}
-		++src;
-		dst += pitch;
-	}
 }
 
 static void PC_drawTile(uint8_t *dst, const uint8_t *src, int mask, const bool xflip, const bool yflip, int colorKey) {
@@ -546,12 +373,12 @@ static void PC_drawTile(uint8_t *dst, const uint8_t *src, int mask, const bool x
 	}
 }
 
-static void decodeLevHelper(uint8_t *dst, const uint8_t *src, int offset10, int offset12, const uint8_t *a5, bool sgdBuf, bool isPC) {
+static void decodeLevHelper(uint8_t *dst, const uint8_t *src, int offset10, int offset12, const uint8_t *a5, bool sgdBuf) {
 	if (offset10 != 0) {
 		const uint8_t *a0 = src + offset10;
 		for (int y = 0; y < 224; y += 8) {
 			for (int x = 0; x < 256; x += 8) {
-				const int d3 = isPC ? READ_LE_UINT16(a0) : READ_BE_UINT16(a0); a0 += 2;
+				const int d3 = READ_LE_UINT16(a0); a0 += 2;
 				const int d0 = d3 & 0x7FF;
 				if (d0 != 0) {
 					const uint8_t *a2 = a5 + d0 * 32;
@@ -561,11 +388,7 @@ static void decodeLevHelper(uint8_t *dst, const uint8_t *src, int offset10, int 
 					if ((d3 & 0x8000) != 0) {
 						mask = 0x80 + ((d3 >> 6) & 0x10);
 					}
-					if (isPC) {
-						PC_drawTile(dst + y * 256 + x, a2, mask, xflip, yflip, -1);
-					} else {
-						AMIGA_drawTile(dst + y * 256 + x, 256, a2, mask, xflip, yflip, -1);
-					}
+					PC_drawTile(dst + y * 256 + x, a2, mask, xflip, yflip, -1);
 				}
 			}
 		}
@@ -574,7 +397,7 @@ static void decodeLevHelper(uint8_t *dst, const uint8_t *src, int offset10, int 
 		const uint8_t *a0 = src + offset12;
 		for (int y = 0; y < 224; y += 8) {
 			for (int x = 0; x < 256; x += 8) {
-				const int d3 = isPC ? READ_LE_UINT16(a0) : READ_BE_UINT16(a0); a0 += 2;
+				const int d3 = READ_LE_UINT16(a0); a0 += 2;
 				int d0 = d3 & 0x7FF;
 				if (d0 != 0 && sgdBuf) {
 					d0 -= 896;
@@ -589,11 +412,7 @@ static void decodeLevHelper(uint8_t *dst, const uint8_t *src, int offset10, int 
 					} else if ((d3 & 0x8000) != 0) {
 						mask = 0x80 + ((d3 >> 6) & 0x10);
 					}
-					if (isPC) {
-						PC_drawTile(dst + y * 256 + x, a2, mask, xflip, yflip, 0);
-					} else {
-						AMIGA_drawTile(dst + y * 256 + x, 256, a2, mask, xflip, yflip, 0);
-					}
+					PC_drawTile(dst + y * 256 + x, a2, mask, xflip, yflip, 0);
 				}
 			}
 		}
@@ -646,77 +465,16 @@ void Video::AMIGA_decodeLev(int level, int room) {
 	memset(_frontLayer, 0, _layerSize);
 	if (tmp[1] != 0) {
 		assert(_res->_sgd);
-		decodeSgd(_frontLayer, tmp + offset10, _res->_sgd, _res->isAmiga());
+		decodeSgd(_frontLayer, tmp + offset10, _res->_sgd);
 		offset10 = 0;
 	}
-	decodeLevHelper(_frontLayer, tmp, offset10, offset12, buf, tmp[1] != 0, _res->isDOS());
+	decodeLevHelper(_frontLayer, tmp, offset10, offset12, buf, tmp[1] != 0);
 	free(buf);
 	memcpy(_backLayer, _frontLayer, _layerSize);
 	_mapPalSlot1 = READ_BE_UINT16(tmp + 2);
 	_mapPalSlot2 = READ_BE_UINT16(tmp + 4);
 	_mapPalSlot3 = READ_BE_UINT16(tmp + 6);
 	_mapPalSlot4 = READ_BE_UINT16(tmp + 8);
-	if (_res->isDOS()) {
-		// done in ::PC_setLevelPalettes
-		return;
-	}
-	// background
-	setPaletteSlotBE(0x0, _mapPalSlot1);
-	// objects
-	setPaletteSlotBE(0x1, (level == 0) ? _mapPalSlot3 : _mapPalSlot2);
-	setPaletteSlotBE(0x2, _mapPalSlot3);
-	setPaletteSlotBE(0x3, _mapPalSlot3);
-	// conrad
-	setPaletteSlotBE(0x4, _mapPalSlot3);
-	// foreground
-	setPaletteSlotBE(0x8, _mapPalSlot1);
-	setPaletteSlotBE(0x9, (level == 0) ? _mapPalSlot1 : _mapPalSlot3);
-	// inventory
-	setPaletteSlotBE(0xA, _mapPalSlot3);
-}
-
-void Video::AMIGA_decodeSpm(const uint8_t *src, uint8_t *dst) {
-	uint8_t buf[256 * 32];
-	const int size = READ_BE_UINT16(src + 3) & 0x7FFF;
-	assert(size <= (int)sizeof(buf));
-	AMIGA_decodeRle(buf, src + 3);
-	const int w = (src[2] >> 7) + 1;
-	const int h = src[2] & 0x7F;
-	AMIGA_planar16(dst, w, h, 3, buf);
-}
-
-void Video::AMIGA_decodeIcn(const uint8_t *src, int num, uint8_t *dst) {
-	for (int i = 0; i < num; ++i) {
-		const int h = 1 + *src++;
-		const int w = 1 + *src++;
-		const int size = w * h * 8;
-		src += 4 + size;
-	}
-	const int h = 1 + *src++;
-	const int w = 1 + *src++;
-	AMIGA_planar16(dst, w, h, 4, src + 4);
-}
-
-void Video::AMIGA_decodeSpc(const uint8_t *src, int w, int h, uint8_t *dst) {
-	switch (w) {
-	case 8:
-		AMIGA_planar8(dst, w, h, src);
-		break;
-	case 16:
-	case 32:
-		AMIGA_planar16(dst, w / 16, h, 4, src);
-		break;
-	case 24:
-		AMIGA_planar24(dst, w, h, src);
-		break;
-	default:
-		warning("AMIGA_decodeSpc w=%d unimplemented", w);
-		break;
-	}
-}
-
-void Video::AMIGA_decodeCmp(const uint8_t *src, uint8_t *dst) {
-	AMIGA_planar16(dst, 20, 224, 5, src);
 }
 
 void Video::drawSpriteSub1(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask) {
@@ -833,21 +591,6 @@ void Video::PC_drawChar(uint8_t c, int16_t y, int16_t x, bool forceDefaultFont) 
 	}
 }
 
-void Video::AMIGA_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8_t color, uint8_t chr) {
-	assert(chr >= 32);
-	AMIGA_decodeIcn(src, chr - 32, _res->_scratchBuffer);
-	src = _res->_scratchBuffer;
-	for (int y = 0; y < 8; ++y) {
-		for (int x = 0; x < 8; ++x) {
-			if (src[x] != 0) {
-				dst[x] = color;
-			}
-		}
-		src += 16;
-		dst += pitch;
-	}
-}
-
 void Video::PC_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8_t color, uint8_t chr) {
 	assert(chr >= 32);
 	src += (chr - 32) * 8 * 4;
@@ -872,7 +615,6 @@ void Video::PC_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8
 const char *Video::drawString(const char *str, int16_t x, int16_t y, uint8_t col) {
 	debug(DBG_VIDEO, "Video::drawString('%s', %d, %d, 0x%X)", str, x, y, col);
 	const uint8_t *fnt = (_res->_lang == LANG_JP) ? _font8Jp : _res->_fnt;
-	drawCharFunc dcf = _drawChar;
 	int len = 0;
 	uint8_t *dst = _frontLayer + y * 256 + x;
 	while (1) {
@@ -880,7 +622,7 @@ const char *Video::drawString(const char *str, int16_t x, int16_t y, uint8_t col
 		if (c == 0 || c == 0xB || c == 0xA) {
 			break;
 		}
-		(this->*dcf)(dst, 256, fnt, col, c);
+		this->PC_drawStringChar(dst, 256, fnt, col, c);
 		dst += CHAR_W;
 		++len;
 	}

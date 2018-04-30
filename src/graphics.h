@@ -21,7 +21,6 @@ struct Graphics {
 	void drawEllipse(uint8_t color, bool hasAlpha, const Point *pt, int16_t rx, int16_t ry);
 	void fillArea(uint8_t color, bool hasAlpha);
 	void drawSegment(uint8_t color, bool hasAlpha, int16_t ys, const Point *pts, uint8_t numPts);
-	void drawPolygonOutline(uint8_t color, const Point *pts, uint8_t numPts);
 	void drawPolygon(uint8_t color, bool hasAlpha, const Point *pts, uint8_t numPts);
 };
 

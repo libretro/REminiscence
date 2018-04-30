@@ -63,7 +63,6 @@ struct Mixer {
 	MusicType _musicType;
 	ModPlayer _mod;
 	SfxPlayer _sfx;
-	int _musicTrack;
 
 	Mixer(FileSystem *fs, SystemStub *stub);
 	void init();
