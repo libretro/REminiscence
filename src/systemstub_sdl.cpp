@@ -32,7 +32,6 @@ struct SystemStub_SDL : SystemStub {
 	uint32_t _rgbPalette[256];
 	int _screenW, _screenH;
 	SDL_Joystick *_joystick;
-	bool _fadeOnUpdateScreen;
 	void (*_audioCbProc)(void *, int16_t *, int);
 	void *_audioCbData;
 	int _screenshot;
@@ -44,10 +43,8 @@ struct SystemStub_SDL : SystemStub {
 	virtual void setPalette(const uint8_t *pal, int n);
 	virtual void setPaletteEntry(int i, const Color *c);
 	virtual void getPaletteEntry(int i, Color *c);
-	virtual void setOverscanColor(int i);
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
-	virtual void fadeScreen();
-	virtual void updateScreen(int shakeOffset);
+	virtual void renderScreen(int shakeOffset);
 	virtual void processEvents();
 	virtual void sleep(int duration);
 	virtual uint32_t getTimeStamp();
@@ -74,7 +71,6 @@ void SystemStub_SDL::init(const char *title, int w, int h, bool fullscreen) {
 	_caption = title;
 	memset(&_pi, 0, sizeof(_pi));
 	_screenBuffer = 0;
-	_fadeOnUpdateScreen = false;
 	_fullscreen = fullscreen;
 	memset(_rgbPalette, 0, sizeof(_rgbPalette));
 	_screenW = _screenH = 0;
@@ -139,10 +135,6 @@ void SystemStub_SDL::getPaletteEntry(int i, Color *c) {
 	SDL_GetRGB(_rgbPalette[i], _fmt, &c->r, &c->g, &c->b);
 }
 
-void SystemStub_SDL::setOverscanColor(int i) {
-	_overscanColor = i;
-}
-
 void SystemStub_SDL::copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch) {
 	if (x < 0) {
 		x = 0;
@@ -177,29 +169,9 @@ void SystemStub_SDL::copyRect(int x, int y, int w, int h, const uint8_t *buf, in
 	}
 }
 
-void SystemStub_SDL::fadeScreen() {
-	_fadeOnUpdateScreen = true;
-}
-
-void SystemStub_SDL::updateScreen(int shakeOffset) {
+void SystemStub_SDL::renderScreen(int shakeOffset) {
 	SDL_UpdateTexture(_texture, 0, _screenBuffer, _screenW * sizeof(uint32_t));
 	SDL_RenderClear(_renderer);
-	if (_fadeOnUpdateScreen) {
-		SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_BLEND);
-		SDL_Rect r;
-		r.x = r.y = 0;
-		SDL_GetRendererOutputSize(_renderer, &r.w, &r.h);
-		for (int i = 1; i <= 16; ++i) {
-			SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 256 - i * 16);
-			SDL_RenderCopy(_renderer, _texture, 0, 0);
-			SDL_RenderFillRect(_renderer, &r);
-			SDL_RenderPresent(_renderer);
-			SDL_Delay(30);
-		}
-		_fadeOnUpdateScreen = false;
-		SDL_SetRenderDrawBlendMode(_renderer, SDL_BLENDMODE_NONE);
-		return;
-	}
 	if (shakeOffset != 0) {
 		SDL_Rect r;
 		r.x = 0;

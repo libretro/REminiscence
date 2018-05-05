@@ -66,9 +66,8 @@ void Menu::drawString2(const char *str, int16_t y, int16_t x) {
 	debug(DBG_MENU, "Menu::drawString2()");
 	int i = 0;
 	for (; str[i]; ++i) {
-		_vid->PC_drawChar((uint8_t)str[i], y, x + i, true);
+		_vid->PC_drawChar((uint8_t) str[i], y, x + i, true);
 	}
-	_vid->markBlockAsDirty(x * 8, y * 8, i * 8, 8);
 }
 
 void Menu::loadPicture(const char *prefix) {
@@ -93,7 +92,6 @@ void Menu::handleInfoScreen() {
 	} else {
 		loadPicture("instru_e");
 	}
-	_vid->fullRefresh();
 	_vid->updateScreen();
 	do {
 		_stub->sleep(EVENTS_DELAY);
@@ -112,17 +110,16 @@ void Menu::handleInfoScreen() {
 void Menu::handleSkillScreen() {
 	debug(DBG_MENU, "Menu::handleSkillScreen()");
 	static const uint8_t colors[3][3] = {
-		{ 2, 3, 3 }, // easy
-		{ 3, 2, 3 }, // normal
-		{ 3, 3, 2 }  // expert
+		{2, 3, 3}, // easy
+		{3, 2, 3}, // normal
+		{3, 3, 2}  // expert
 	};
 	_vid->fadeOut();
 	loadPicture("menu3");
-	_vid->fullRefresh();
 	drawString(_res->getMenuString(LocaleData::LI_12_SKILL_LEVEL), 12, 4, 3);
 	int skill_level = _skill;
 	do {
-		drawString(_res->getMenuString(LocaleData::LI_13_EASY),   15, 14, colors[skill_level][0]);
+		drawString(_res->getMenuString(LocaleData::LI_13_EASY), 15, 14, colors[skill_level][0]);
 		drawString(_res->getMenuString(LocaleData::LI_14_NORMAL), 17, 14, colors[skill_level][1]);
 		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 19, 14, colors[skill_level][2]);
 
@@ -165,7 +162,6 @@ bool Menu::handlePasswordScreen() {
 	_vid->_charShadowColor = _charVar1;
 	_vid->_charTransparentColor = 0xFF;
 	_vid->_charFrontColor = _charVar4;
-	_vid->fullRefresh();
 	char password[7];
 	int len = 0;
 	do {
@@ -174,11 +170,10 @@ bool Menu::handlePasswordScreen() {
 		drawString2(_res->getMenuString(LocaleData::LI_17_ENTER_PASSWORD2), 17, 3);
 
 		for (int i = 0; i < len; ++i) {
-			_vid->PC_drawChar((uint8_t)password[i], 21, i + 15);
+			_vid->PC_drawChar((uint8_t) password[i], 21, i + 15);
 		}
 		_vid->PC_drawChar(0x20, 21, len + 15);
 
-		_vid->markBlockAsDirty(15 * 8, 21 * 8, (len + 1) * 8, 8);
 		_vid->updateScreen();
 		_stub->sleep(EVENTS_DELAY);
 		_stub->processEvents();
@@ -227,7 +222,6 @@ bool Menu::handleLevelScreen() {
 	debug(DBG_MENU, "Menu::handleLevelScreen()");
 	_vid->fadeOut();
 	loadPicture("menu2");
-	_vid->fullRefresh();
 	int currentSkill = _skill;
 	int currentLevel = _level;
 	do {
@@ -243,12 +237,10 @@ bool Menu::handleLevelScreen() {
 		for (int i = 0; i < 7; ++i) {
 			drawString(levelTitles[i], 7 + i * 2, 4, (currentLevel == i) ? 2 : 3);
 		}
-		_vid->markBlockAsDirty(4 * 8, 7 * 8, 192, 7 * 8);
 
-                drawString(_res->getMenuString(LocaleData::LI_13_EASY),   23,  4, (currentSkill == 0) ? 2 : 3);
-                drawString(_res->getMenuString(LocaleData::LI_14_NORMAL), 23, 14, (currentSkill == 1) ? 2 : 3);
-                drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 23, 24, (currentSkill == 2) ? 2 : 3);
-		_vid->markBlockAsDirty(4 * 8, 23 * 8, 192, 8);
+		drawString(_res->getMenuString(LocaleData::LI_13_EASY), 23, 4, (currentSkill == 0) ? 2 : 3);
+		drawString(_res->getMenuString(LocaleData::LI_14_NORMAL), 23, 14, (currentSkill == 1) ? 2 : 3);
+		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 23, 24, (currentSkill == 2) ? 2 : 3);
 
 		_vid->updateScreen();
 		_stub->sleep(EVENTS_DELAY);
@@ -349,7 +341,6 @@ void Menu::handleTitleScreen() {
 		if (_nextScreen == SCREEN_TITLE) {
 			_vid->fadeOut();
 			loadPicture("menu1");
-			_vid->fullRefresh();
 			_charVar3 = 1;
 			_charVar4 = 2;
 			currentEntry = 0;

@@ -13,15 +13,11 @@ struct Resource;
 struct SystemStub;
 
 struct Video {
-	typedef void (Video::*drawCharFunc)(uint8_t *, int, const uint8_t *, uint8_t, uint8_t);
-
 	enum {
 		GAMESCREEN_W = 256,
 		GAMESCREEN_H = 224,
-		SCREENBLOCK_W = 8,
-		SCREENBLOCK_H = 8,
-		CHAR_W = 8,
-		CHAR_H = 8
+		CHAR_W       = 8,
+		CHAR_H       = 8
 	};
 
 	static const uint8_t _conradPal1[];
@@ -30,13 +26,13 @@ struct Video {
 	static const uint8_t _palSlot0xF[];
 	static const uint8_t _font8Jp[];
 
-	Resource *_res;
+	Resource   *_res;
 	SystemStub *_stub;
 
-	int _w, _h;
-	int _layerSize;
-	uint8_t *_frontLayer;
-	uint8_t *_backLayer;
+	int     _w, _h;
+	size_t  _layerSize;
+	uint8_t *_frontLayer; // drawing layer
+	uint8_t *_backLayer;  // background layer; used to clear screen between frames
 	uint8_t *_tempLayer;
 	uint8_t *_tempLayer2;
 	uint8_t _unkPalSlot1, _unkPalSlot2;
@@ -44,16 +40,12 @@ struct Video {
 	uint8_t _charFrontColor;
 	uint8_t _charTransparentColor;
 	uint8_t _charShadowColor;
-	uint8_t *_screenBlocks;
-	bool _fullRefresh;
 	uint8_t _shakeOffset;
 
 	Video(Resource *res, SystemStub *stub);
 	~Video();
 
-	void markBlockAsDirty(int16_t x, int16_t y, uint16_t w, uint16_t h);
 	void updateScreen();
-	void fullRefresh();
 	void fadeOut();
 	void fadeOutPalette();
 

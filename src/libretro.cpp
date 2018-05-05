@@ -21,7 +21,6 @@ struct SystemStub_libretro : SystemStub {
 
 static const int kAudioHz = 22050;
 
-Options g_options = {.fade_out_palette = true};
 const char *g_caption = "REminiscence";
 
 Game *game;

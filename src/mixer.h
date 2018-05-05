@@ -30,7 +30,7 @@ struct MixerChunk {
 };
 
 struct MixerChannel {
-	uint8_t active;
+	bool active;
 	uint8_t volume;
 	MixerChunk chunk;
 	uint32_t chunkPos;

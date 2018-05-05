@@ -71,14 +71,12 @@ static Language detectLanguage(FileSystem *fs) {
 	return LANG_EN;
 }
 
-Options g_options;
 const char *g_caption = "REminiscence";
 
 static void initOptions() {
 	// defaults
 	g_options.play_disabled_cutscenes = false;
 	g_options.enable_password_menu = false;
-	g_options.fade_out_palette = true;
 	g_options.use_text_cutscenes = false;
 	g_options.use_seq_cutscenes = true;
 	// read configuration file
@@ -88,8 +86,6 @@ static void initOptions() {
 	} opts[] = {
 		{ "play_disabled_cutscenes", &g_options.play_disabled_cutscenes },
 		{ "enable_password_menu", &g_options.enable_password_menu },
-		{ "fade_out_palette", &g_options.fade_out_palette },
-		{ "use_tiledata", &g_options.use_tiledata },
 		{ "use_text_cutscenes", &g_options.use_text_cutscenes },
 		{ "use_seq_cutscenes", &g_options.use_seq_cutscenes },
 		{ 0, 0 }

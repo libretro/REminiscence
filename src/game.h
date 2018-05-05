@@ -124,7 +124,6 @@ struct Game {
 	void changeLevel();
 	void handleInventory();
 
-
 	// pieges
 	bool _pge_playAnimSound;
 	GroupPGE _pge_groups[256];

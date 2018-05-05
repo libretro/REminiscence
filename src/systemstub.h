@@ -9,6 +9,11 @@
 
 #include "intern.h"
 
+#define TS_SECONDS(sec) static_cast<uint32_t>((sec) * 1000)
+#define MS_PER_FRAME (1000/50)
+
+struct Game;
+
 struct PlayerInput {
 	enum {
 		DIR_UP    = 1 << 0,
@@ -41,22 +46,28 @@ struct PlayerInput {
 
 struct SystemStub {
 	typedef void (*AudioCallback)(void *param, int16_t *stream, int len);
+	typedef void *cothread_t;
 
 	PlayerInput _pi;
+	Game *game;
+	bool running;
+	cothread_t mainThread;
+	cothread_t gameThread;
+	uint32_t _deltaTime;
+	uint32_t _lastTimestamp;
 
-	virtual ~SystemStub() {}
+	SystemStub();
+	virtual ~SystemStub() = default;
 
-	virtual void init(const char *title, int w, int h, bool fullscreen) = 0;
+	virtual void init(const char *title, int w, int h, bool fullscreen);
 	virtual void destroy() = 0;
 
 	virtual void setScreenSize(int w, int h) = 0;
 	virtual void setPalette(const uint8_t *pal, int n) = 0;
 	virtual void setPaletteEntry(int i, const Color *c) = 0;
 	virtual void getPaletteEntry(int i, Color *c) = 0;
-	virtual void setOverscanColor(int i) = 0;
 	virtual void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch) = 0;
-	virtual void fadeScreen() = 0;
-	virtual void updateScreen(int shakeOffset) = 0;
+	virtual void renderScreen(int shakeOffset) = 0;
 
 	virtual void processEvents() = 0;
 	virtual void sleep(int duration) = 0;
@@ -67,6 +78,14 @@ struct SystemStub {
 	virtual uint32_t getOutputSampleRate() = 0;
 	virtual void lockAudio() = 0;
 	virtual void unlockAudio() = 0;
+
+	void updateScreen(int shakeOffset);
+	void start(Game *game);
+	void resume(uint32_t ts);
+	void yield();
+	bool isRunning() { return running; };
+
+	static SystemStub *instance;
 };
 
 struct LockAudioStack {

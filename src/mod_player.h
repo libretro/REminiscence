@@ -26,11 +26,8 @@ struct ModPlayer {
 	ModPlayer_impl *_impl;
 
 	ModPlayer(Mixer *mixer, FileSystem *fs);
-
 	~ModPlayer();
-
 	void play(int num);
-
 	void stop();
 
 	static bool mixCallback(void *param, int16_t *buf, int len);

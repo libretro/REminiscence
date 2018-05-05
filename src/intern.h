@@ -86,8 +86,6 @@ enum ResourceType {
 struct Options {
 	bool play_disabled_cutscenes;
 	bool enable_password_menu;
-	bool fade_out_palette;
-	bool use_tiledata;
 	bool use_text_cutscenes;
 	bool use_seq_cutscenes;
 };

@@ -1902,7 +1902,6 @@ int Game::pge_op_changeRoom(ObjectOpcodeArgs *args) {
 			if (_currentRoom != live_pge_2->room_location) {
 				_currentRoom = live_pge_2->room_location;
 				loadLevelMap();
-				_vid.fullRefresh();
 			}
 		}
 		pge_setupDefaultAnim(live_pge_2);

@@ -1045,7 +1045,6 @@ void Cutscene::play() {
 			load(cutName);
 			mainLoop(cutOff);
 		}
-		_vid->fullRefresh();
 		if (_id != 0x3D) {
 			_id = 0xFFFF;
 		}

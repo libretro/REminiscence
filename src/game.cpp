@@ -12,6 +12,9 @@
 #include "systemstub.h"
 #include "unpack.h"
 #include "util.h"
+#include <libco.h>
+
+Options g_options{};
 
 Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, stub, &_vid), _menu(&_res, stub, &_vid),
@@ -22,6 +25,10 @@ Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, La
 	_skillLevel = _menu._skill = 1;
 	_currentLevel = _menu._level = level;
 	_demoBin = -1;
+}
+
+namespace coruntime {
+	Game *game;
 }
 
 void Game::init() {
@@ -90,7 +97,6 @@ void Game::run() {
 		} else {
 			_vid.setTextPalette();
 			_vid.setPalette0xF();
-			_stub->setOverscanColor(0xE0);
 			_vid._unkPalSlot1 = 0;
 			_vid._unkPalSlot2 = 0;
 			_score = 0;
@@ -198,7 +204,6 @@ void Game::mainLoop() {
 			_currentRoom = _pgeLive[0].room_location;
 			loadLevelMap();
 			_loadMap = false;
-			_vid.fullRefresh();
 		}
 	}
 	prepareAnims();
@@ -314,7 +319,6 @@ bool Game::playCutsceneSeq(const char *name) {
 	if (f.open(name, "rb", _fs)) {
 		_seq.setBackBuffer(_res._scratchBuffer);
 		_seq.play(&f);
-		_vid.fullRefresh();
 		return true;
 	}
 	return false;
@@ -415,7 +419,6 @@ bool Game::handleConfigPanel() {
 	_menu._charVar1 = 0xE2;
 	_menu._charVar2 = 0xEE;
 
-	_vid.fullRefresh();
 	enum { MENU_ITEM_LOAD = 1, MENU_ITEM_SAVE = 2, MENU_ITEM_ABORT = 3 };
 	uint8_t colors[] = { 2, 3, 3, 3 };
 	int current = 0;
@@ -475,7 +478,6 @@ bool Game::handleConfigPanel() {
 			break;
 		}
 	}
-	_vid.fullRefresh();
 	return (current == MENU_ITEM_ABORT);
 }
 
@@ -922,7 +924,6 @@ void Game::drawObjectFrame(const uint8_t *bankDataPtr, const uint8_t *dataPtr, i
 			_vid.drawSpriteSub4(src, _vid._frontLayer + dst_offset, sprite_w, sprite_clipped_h, sprite_clipped_w, sprite_col_mask);
 		}
 	}
-	_vid.markBlockAsDirty(sprite_x, sprite_y, sprite_clipped_w, sprite_clipped_h);
 }
 
 void Game::decodeCharacterFrame(const uint8_t *dataPtr, uint8_t *dstPtr) {
@@ -1059,7 +1060,6 @@ void Game::drawCharacter(const uint8_t *dataPtr, int16_t pos_x, int16_t pos_y, u
 			_vid.drawSpriteSub4(src, _vid._frontLayer + dst_offset, sprite_w, sprite_clipped_h, sprite_clipped_w, sprite_col_mask);
 		}
 	}
-	_vid.markBlockAsDirty(pos_x, pos_y, sprite_clipped_w, sprite_clipped_h);
 }
 
 int Game::loadMonsterSprites(LivePGE *pge) {
@@ -1178,7 +1178,6 @@ void Game::drawIcon(uint8_t iconNum, int16_t x, int16_t y, uint8_t colMask) {
 	uint8_t buf[16 * 16];
 	_vid.PC_decodeIcn(_res._icn, iconNum, buf);
 	_vid.drawSpriteSub1(buf, _vid._frontLayer + x + y * 256, 16, 16, 16, colMask << 4);
-	_vid.markBlockAsDirty(x, y, 16, 16);
 }
 
 void Game::playSound(uint8_t sfxId, uint8_t softVol) {
@@ -1212,7 +1211,6 @@ void Game::changeLevel() {
 	loadLevelMap();
 	_vid.setPalette0xF();
 	_vid.setTextPalette();
-	_vid.fullRefresh();
 }
 
 void Game::handleInventory() {
@@ -1330,7 +1328,6 @@ void Game::handleInventory() {
 				display_score = !display_score;
 			}
 		}
-		_vid.fullRefresh();
 		_stub->_pi.backspace = false;
 		if (selected_pge) {
 			pge_setCurrentInventoryObject(selected_pge);
