@@ -5,35 +5,31 @@
  */
 
 #include "mixer.h"
-#include "systemstub.h"
+#include "game.h"
 #include "util.h"
 
-Mixer::Mixer(FileSystem *fs, SystemStub *stub)
-	: _stub(stub), _musicType(MT_NONE), _mod(this, fs), _sfx(this) {
+Mixer::Mixer(FileSystem *fs, Game *game)
+	: _game(game), _musicType(MT_NONE), _mod(this, fs), _sfx(this) {
 }
 
 void Mixer::init() {
 	memset(_channels, 0, sizeof(_channels));
 	_premixHook = 0;
-	_stub->startAudio(Mixer::mixCallback, this);
 }
 
 void Mixer::free() {
 	setPremixHook(0, 0);
 	stopAll();
-	_stub->stopAudio();
 }
 
 void Mixer::setPremixHook(PremixHook premixHook, void *userData) {
 	debug(DBG_SND, "Mixer::setPremixHook()");
-	LockAudioStack las(_stub);
 	_premixHook = premixHook;
 	_premixHookData = userData;
 }
 
 void Mixer::play(const MixerChunk *mc, uint16_t freq, uint8_t volume) {
 	debug(DBG_SND, "Mixer::play(%d, %d)", freq, volume);
-	LockAudioStack las(_stub);
 	MixerChannel *ch = 0;
 	for (int i = 0; i < NUM_CHANNELS; ++i) {
 		MixerChannel *cur = &_channels[i];
@@ -52,13 +48,12 @@ void Mixer::play(const MixerChunk *mc, uint16_t freq, uint8_t volume) {
 		ch->volume = volume;
 		ch->chunk = *mc;
 		ch->chunkPos = 0;
-		ch->chunkInc = (freq << FRAC_BITS) / _stub->getOutputSampleRate();
+		ch->chunkInc = (freq << FRAC_BITS) / _game->getOutputSampleRate();
 	}
 }
 
 bool Mixer::isPlaying(const MixerChunk *mc) const {
 	debug(DBG_SND, "Mixer::isPlaying");
-	LockAudioStack las(_stub);
 	for (int i = 0; i < NUM_CHANNELS; ++i) {
 		const MixerChannel *ch = &_channels[i];
 		if (ch->active && ch->chunk.data == mc->data) {
@@ -69,12 +64,11 @@ bool Mixer::isPlaying(const MixerChunk *mc) const {
 }
 
 uint32_t Mixer::getSampleRate() const {
-	return _stub->getOutputSampleRate();
+	return _game->getOutputSampleRate();
 }
 
 void Mixer::stopAll() {
 	debug(DBG_SND, "Mixer::stopAll()");
-	LockAudioStack las(_stub);
 	for (uint8_t i = 0; i < NUM_CHANNELS; ++i) {
 		_channels[i].active = false;
 	}

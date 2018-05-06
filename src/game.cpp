@@ -9,26 +9,24 @@
 #include "fs.h"
 #include "game.h"
 #include "seq_player.h"
-#include "systemstub.h"
 #include "unpack.h"
 #include "util.h"
 #include <libco.h>
 
 Options g_options{};
 
-Game::Game(SystemStub *stub, FileSystem *fs, const char *savePath, int level, Language lang)
-	: _cut(&_res, stub, &_vid), _menu(&_res, stub, &_vid),
-	  _mix(fs, stub), _res(fs, lang), _seq(stub, &_mix), _vid(&_res, stub),
-	  _stub(stub), _fs(fs), _savePath(savePath) {
+Game *Game::instance;
+
+Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
+	: _cut(&_res, this, &_vid), _menu(&_res, this, &_vid),
+	  _mix(fs, this), _res(fs, lang), _vid(&_res, this), _seq(&_vid, this, &_mix),
+	  _fs(fs), _savePath(savePath) {
 	_stateSlot = 1;
 	_inp_demPos = 0;
 	_skillLevel = _menu._skill = 1;
 	_currentLevel = _menu._level = level;
 	_demoBin = -1;
-}
-
-namespace coruntime {
-	Game *game;
+	Game::instance = this;
 }
 
 void Game::init() {
@@ -46,6 +44,22 @@ void Game::init() {
 	}
 	_mix.init();
 	_mix._mod._isAmiga = false;
+
+	running = true;
+	_frameReady = false;
+	mainThread = co_active();
+
+	auto fn = []() {
+		Game::instance->run();
+		Game::instance->running = false;
+		while (true) {
+			debug(DBG_INFO, "Running dead emulator\n");
+			Game::instance->yield();
+		}
+	};
+
+	gameThread = co_create(65536 * sizeof(void *), fn);
+
 }
 
 void Game::run() {
@@ -58,14 +72,14 @@ void Game::run() {
 	_res.load_SPR_OFF("PERSO", _res._spr1);
 	_res.load_FIB("GLOBAL");
 
-	while (!_stub->_pi.quit) {
+	while (!_pi.quit) {
 		if (_res._isDemo) {
 			// do not present title screen and menus
 		} else {
 			_mix.playMusic(1);
 			_menu.handleTitleScreen();
-			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_QUIT || _stub->_pi.quit) {
-				_stub->_pi.quit = true;
+			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_QUIT || _pi.quit) {
+				_pi.quit = true;
 				break;
 			}
 			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_DEMO) {
@@ -86,7 +100,7 @@ void Game::run() {
 			_skillLevel = _menu._skill;
 			_currentLevel = _menu._level;
 			_mix.stopMusic();
-			if (_stub->_pi.quit) {
+			if (_pi.quit) {
 				break;
 			}
 		}
@@ -103,8 +117,8 @@ void Game::run() {
 			loadLevelData();
 			resetGameState();
 			_endLoop = false;
-			_frameTimestamp = _stub->getTimeStamp();
-			while (!_stub->_pi.quit && !_endLoop) {
+			_frameTimestamp = getTimeStamp();
+			while (!_pi.quit && !_endLoop) {
 				mainLoop();
 				if (_demoBin != -1 && _inp_demPos >= _res._demLen) {
 					debug(DBG_DEMO, "End of demo");
@@ -114,16 +128,55 @@ void Game::run() {
 				}
 			}
 			// flush inputs
-			_stub->_pi.dirMask = 0;
-			_stub->_pi.enter = false;
-			_stub->_pi.space = false;
-			_stub->_pi.shift = false;
+			_pi.dirMask = 0;
+			_pi.enter = false;
+			_pi.space = false;
+			_pi.shift = false;
 		}
 	}
 
 	_res.free_TEXT();
 	_mix.free();
 	_res.fini();
+}
+
+void Game::update(uint32_t ts) {
+	_deltaTime     = ts - _lastTimestamp;
+	_lastTimestamp = ts;
+
+	// slow?
+	int count = _deltaTime / MS_PER_FRAME;
+	if (count > 0) {
+		debug(DBG_GAME, "slow by %d frames\n", count);
+	}
+	co_switch(gameThread);
+}
+
+void Game::yield() {
+	co_switch(mainThread);
+}
+
+void Game::sleep(int ms) {
+	while (ms > 0) {
+		yield();
+		ms -= _deltaTime;
+	}
+}
+
+void Game::processEvents() {
+
+}
+
+uint32_t Game::getTimeStamp() {
+	return _lastTimestamp;
+}
+
+void Game::processFragment(int16_t *stream, int len) {
+	_mix.mix(stream, len);
+}
+
+uint32_t* Game::getFramebuffer() {
+	return _vid._frameBuffer;
 }
 
 void Game::resetGameState() {
@@ -175,7 +228,7 @@ void Game::mainLoop() {
 			return;
 		}
 	}
-	memcpy(_vid._frontLayer, _vid._backLayer, _vid._layerSize);
+	memcpy(_vid._frontLayer, _vid._backLayer, Video::LAYER_SIZE);
 	pge_getInput();
 	pge_prepare();
 	col_prepareRoomState();
@@ -217,12 +270,12 @@ void Game::mainLoop() {
 	_vid.updateScreen();
 	updateTiming();
 	drawStoryTexts();
-	if (_stub->_pi.backspace) {
-		_stub->_pi.backspace = false;
+	if (_pi.backspace) {
+		_pi.backspace = false;
 		handleInventory();
 	}
-	if (_stub->_pi.escape) {
-		_stub->_pi.escape = false;
+	if (_pi.escape) {
+		_pi.escape = false;
 		if (_demoBin != -1 || handleConfigPanel()) {
 			_endLoop = true;
 			return;
@@ -233,13 +286,13 @@ void Game::mainLoop() {
 
 void Game::updateTiming() {
 	static const int frameHz = 30;
-	int32_t delay = _stub->getTimeStamp() - _frameTimestamp;
-	int32_t pause = (_stub->_pi.dbgMask & PlayerInput::DF_FASTMODE) ? 20 : (1000 / frameHz);
+	int32_t delay = getTimeStamp() - _frameTimestamp;
+	int32_t pause = (_pi.dbgMask & PlayerInput::DF_FASTMODE) ? 20 : (1000 / frameHz);
 	pause -= delay;
 	if (pause > 0) {
-		_stub->sleep(pause);
+		sleep(pause);
 	}
-	_frameTimestamp = _stub->getTimeStamp();
+	_frameTimestamp = getTimeStamp();
 }
 
 void Game::playCutscene(int id) {
@@ -325,24 +378,24 @@ bool Game::playCutsceneSeq(const char *name) {
 }
 
 void Game::inp_handleSpecialKeys() {
-	if (_stub->_pi.dbgMask & PlayerInput::DF_SETLIFE) {
+	if (_pi.dbgMask & PlayerInput::DF_SETLIFE) {
 		_pgeLive[0].life = 0x7FFF;
 	}
-	if (_stub->_pi.load) {
+	if (_pi.load) {
 		loadGameState(_stateSlot);
-		_stub->_pi.load = false;
+		_pi.load = false;
 	}
-	if (_stub->_pi.save) {
+	if (_pi.save) {
 		saveGameState(_stateSlot);
-		_stub->_pi.save = false;
+		_pi.save = false;
 	}
-	if (_stub->_pi.stateSlot != 0) {
-		int8_t slot = _stateSlot + _stub->_pi.stateSlot;
+	if (_pi.stateSlot != 0) {
+		int8_t slot = _stateSlot + _pi.stateSlot;
 		if (slot >= 1 && slot < 100) {
 			_stateSlot = slot;
 			debug(DBG_INFO, "Current game state slot is %d", _stateSlot);
 		}
-		_stub->_pi.stateSlot = 0;
+		_pi.stateSlot = 0;
 	}
 }
 
@@ -361,15 +414,16 @@ void Game::showFinalScore() {
 	_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 40, 0xE5);
 	strcpy(buf, _menu._passwords[7][_skillLevel]);
 	_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 16, 0xE7);
-	while (!_stub->_pi.quit) {
-		_stub->copyRect(0, 0, _vid._w, _vid._h, _vid._frontLayer, 256);
-		_stub->updateScreen(0);
-		_stub->processEvents();
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+	while (!_pi.quit) {
+		_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+		setFrameReady();
+		yield();
+		processEvents();
+		if (_pi.enter) {
+			_pi.enter = false;
 			break;
 		}
-		_stub->sleep(100);
+		sleep(100);
 	}
 }
 
@@ -422,7 +476,7 @@ bool Game::handleConfigPanel() {
 	enum { MENU_ITEM_LOAD = 1, MENU_ITEM_SAVE = 2, MENU_ITEM_ABORT = 3 };
 	uint8_t colors[] = { 2, 3, 3, 3 };
 	int current = 0;
-	while (!_stub->_pi.quit) {
+	while (!_pi.quit) {
 		_menu.drawString(_res.getMenuString(LocaleData::LI_18_RESUME_GAME), y + 2, 9, colors[0]);
 		_menu.drawString(_res.getMenuString(LocaleData::LI_20_LOAD_GAME), y + 4, 9, colors[1]);
 		_menu.drawString(_res.getMenuString(LocaleData::LI_21_SAVE_GAME), y + 6, 9, colors[2]);
@@ -432,27 +486,27 @@ bool Game::handleConfigPanel() {
 		_menu.drawString(buf, y + 10, 9, 1);
 
 		_vid.updateScreen();
-		_stub->sleep(80);
+		sleep(80);
 		inp_update();
 
 		int prev = current;
-		if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_pi.dirMask & PlayerInput::DIR_UP) {
+			_pi.dirMask &= ~PlayerInput::DIR_UP;
 			current = (current + 3) % 4;
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			current = (current + 1) % 4;
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_LEFT) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+		if (_pi.dirMask & PlayerInput::DIR_LEFT) {
+			_pi.dirMask &= ~PlayerInput::DIR_LEFT;
 			--_stateSlot;
 			if (_stateSlot < 1) {
 				_stateSlot = 1;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_RIGHT) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+		if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
+			_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
 			++_stateSlot;
 			if (_stateSlot > 99) {
 				_stateSlot = 99;
@@ -461,20 +515,20 @@ bool Game::handleConfigPanel() {
 		if (prev != current) {
 			SWAP(colors[prev], colors[current]);
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_pi.enter) {
+			_pi.enter = false;
 			switch (current) {
 			case MENU_ITEM_LOAD:
-				_stub->_pi.load = true;
+				_pi.load = true;
 				break;
 			case MENU_ITEM_SAVE:
-				_stub->_pi.save = true;
+				_pi.save = true;
 				break;
 			}
 			break;
 		}
-		if (_stub->_pi.escape) {
-			_stub->_pi.escape = false;
+		if (_pi.escape) {
+			_pi.escape = false;
 			break;
 		}
 	}
@@ -488,9 +542,9 @@ bool Game::handleContinueAbort() {
 	uint8_t colors[] = { 0xE4, 0xE5 };
 	uint8_t color_inc = 0xFF;
 	Color col;
-	_stub->getPaletteEntry(0xE4, &col);
-	memcpy(_vid._tempLayer, _vid._frontLayer, _vid._layerSize);
-	while (timeout >= 0 && !_stub->_pi.quit) {
+	_vid.getPaletteEntry(0xE4, &col);
+	memcpy(_vid._tempLayer, _vid._frontLayer, Video::LAYER_SIZE);
+	while (timeout >= 0 && !_pi.quit) {
 		const char *str;
 		str = _res.getMenuString(LocaleData::LI_01_CONTINUE_OR_ABORT);
 		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 64, 0xE3);
@@ -504,26 +558,27 @@ bool Game::handleContinueAbort() {
 		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 112, colors[1]);
 		snprintf(buf, sizeof(buf), "SCORE  %08u", _score);
 		_vid.drawString(buf, 64, 154, 0xE3);
-		if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_pi.dirMask & PlayerInput::DIR_UP) {
+			_pi.dirMask &= ~PlayerInput::DIR_UP;
 			if (current_color > 0) {
 				SWAP(colors[current_color], colors[current_color - 1]);
 				--current_color;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			if (current_color < 1) {
 				SWAP(colors[current_color], colors[current_color + 1]);
 				++current_color;
 			}
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_pi.enter) {
+			_pi.enter = false;
 			return (current_color == 0);
 		}
-		_stub->copyRect(0, 0, _vid._w, _vid._h, _vid._frontLayer, 256);
-		_stub->updateScreen(0);
+		_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+		setFrameReady();
+		yield();
 		static const int COLOR_STEP = 8;
 		static const int COLOR_MIN = 16;
 		static const int COLOR_MAX = 256 - 16;
@@ -539,11 +594,11 @@ bool Game::handleContinueAbort() {
 			col.b -= COLOR_STEP;
 			col.g -= COLOR_STEP;
 		}
-		_stub->setPaletteEntry(0xE4, &col);
-		_stub->processEvents();
-		_stub->sleep(100);
+		_vid.setPaletteEntry(0xE4, &col);
+		processEvents();
+		sleep(100);
 		--timeout;
-		memcpy(_vid._frontLayer, _vid._tempLayer, _vid._layerSize);
+		memcpy(_vid._frontLayer, _vid._tempLayer, Video::LAYER_SIZE);
 	}
 	return false;
 }
@@ -555,7 +610,7 @@ void Game::printLevelCode() {
 			char buf[32];
 			const char *code = Menu::_passwords[_currentLevel][_skillLevel];
 			snprintf(buf, sizeof(buf), "CODE: %s", code);
-			_vid.drawString(buf, (_vid._w - strlen(buf) * 8) / 2, 16, 0xE7);
+			_vid.drawString(buf, (Video::GAMESCREEN_W - strlen(buf) * 8) / 2, 16, 0xE7);
 		}
 	}
 }
@@ -605,9 +660,9 @@ void Game::drawStoryTexts() {
 	if (_textToDisplay != 0xFFFF) {
 		uint8_t textColor = 0xE8;
 		const uint8_t *str = _res.getGameString(_textToDisplay);
-		memcpy(_vid._tempLayer, _vid._frontLayer, _vid._layerSize);
+		memcpy(_vid._tempLayer, _vid._frontLayer, Video::LAYER_SIZE);
 		int textSpeechSegment = 0;
-		while (!_stub->_pi.quit) {
+		while (!_pi.quit) {
 			drawIcon(_currentInventoryIconNum, 80, 8, 0xA);
 			if (*str == 0xFF) {
 				if (_res._lang == LANG_JP) {
@@ -645,23 +700,23 @@ void Game::drawStoryTexts() {
 				_mix.play(&chunk, 32000, Mixer::MAX_VOLUME);
 			}
 			_vid.updateScreen();
-			while (!_stub->_pi.backspace && !_stub->_pi.quit) {
+			while (!_pi.backspace && !_pi.quit) {
 				if (chunk.data && !_mix.isPlaying(&chunk)) {
 					break;
 				}
 				inp_update();
-				_stub->sleep(80);
+				sleep(80);
 			}
 			if (chunk.data) {
 				_mix.stopAll();
 				free(chunk.data);
 			}
-			_stub->_pi.backspace = false;
+			_pi.backspace = false;
 			if (*str == 0) {
 				break;
 			}
 			++str;
-			memcpy(_vid._frontLayer, _vid._tempLayer, _vid._layerSize);
+			memcpy(_vid._frontLayer, _vid._tempLayer, Video::LAYER_SIZE);
 		}
 		_textToDisplay = 0xFFFF;
 	}
@@ -1233,7 +1288,7 @@ void Game::handleInventory() {
 		int num_lines = (num_items - 1) / 4 + 1;
 		int current_line = 0;
 		bool display_score = false;
-		while (!_stub->_pi.backspace && !_stub->_pi.quit) {
+		while (!_pi.backspace && !_pi.quit) {
 			// draw inventory background
 			int icon_h = 5;
 			int icon_y = 140;
@@ -1288,25 +1343,25 @@ void Game::handleInventory() {
 			}
 
 			_vid.updateScreen();
-			_stub->sleep(80);
+			sleep(80);
 			inp_update();
 
-			if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-				_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+			if (_pi.dirMask & PlayerInput::DIR_UP) {
+				_pi.dirMask &= ~PlayerInput::DIR_UP;
 				if (current_line < num_lines - 1) {
 					++current_line;
 					current_item = current_line * 4;
 				}
 			}
-			if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-				_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+			if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+				_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 				if (current_line > 0) {
 					--current_line;
 					current_item = current_line * 4;
 				}
 			}
-			if (_stub->_pi.dirMask & PlayerInput::DIR_LEFT) {
-				_stub->_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+			if (_pi.dirMask & PlayerInput::DIR_LEFT) {
+				_pi.dirMask &= ~PlayerInput::DIR_LEFT;
 				if (current_item > 0) {
 					int item_num = current_item % 4;
 					if (item_num > 0) {
@@ -1314,8 +1369,8 @@ void Game::handleInventory() {
 					}
 				}
 			}
-			if (_stub->_pi.dirMask & PlayerInput::DIR_RIGHT) {
-				_stub->_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+			if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
+				_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
 				if (current_item < num_items - 1) {
 					int item_num = current_item % 4;
 					if (item_num < 3) {
@@ -1323,12 +1378,12 @@ void Game::handleInventory() {
 					}
 				}
 			}
-			if (_stub->_pi.enter) {
-				_stub->_pi.enter = false;
+			if (_pi.enter) {
+				_pi.enter = false;
 				display_score = !display_score;
 			}
 		}
-		_stub->_pi.backspace = false;
+		_pi.backspace = false;
 		if (selected_pge) {
 			pge_setCurrentInventoryObject(selected_pge);
 		}
@@ -1337,14 +1392,14 @@ void Game::handleInventory() {
 }
 
 void Game::inp_update() {
-	_stub->processEvents();
+	processEvents();
 	if (_demoBin != -1 && _inp_demPos < _res._demLen) {
 		const int keymask = _res._dem[_inp_demPos++];
-		_stub->_pi.dirMask = keymask & 0xF;
-		_stub->_pi.enter = (keymask & 0x10) != 0;
-		_stub->_pi.space = (keymask & 0x20) != 0;
-		_stub->_pi.shift = (keymask & 0x40) != 0;
-		_stub->_pi.backspace = (keymask & 0x80) != 0;
+		_pi.dirMask = keymask & 0xF;
+		_pi.enter = (keymask & 0x10) != 0;
+		_pi.space = (keymask & 0x20) != 0;
+		_pi.shift = (keymask & 0x40) != 0;
+		_pi.backspace = (keymask & 0x80) != 0;
 	}
 }
 

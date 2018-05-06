@@ -11,7 +11,7 @@
 #include "graphics.h"
 
 struct Resource;
-struct SystemStub;
+struct Game;
 struct Video;
 
 struct Cutscene {
@@ -41,7 +41,7 @@ struct Cutscene {
 
 	Graphics _gfx;
 	Resource *_res;
-	SystemStub *_stub;
+	Game *_game;
 	Video *_vid;
 	const uint8_t *_patchedOffsetsTable;
 
@@ -88,7 +88,7 @@ struct Cutscene {
 	int16_t _creditsTextCounter;
 	uint8_t *_page0, *_page1, *_pageC;
 
-	Cutscene(Resource *res, SystemStub *stub, Video *vid);
+	Cutscene(Resource *res, Game *game, Video *vid);
 
 	void sync();
 	void copyPalette(const uint8_t *pal, uint16_t num);

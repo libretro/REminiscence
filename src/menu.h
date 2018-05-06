@@ -10,7 +10,7 @@
 #include "intern.h"
 
 struct Resource;
-struct SystemStub;
+struct Game;
 struct Video;
 
 struct Menu {
@@ -43,7 +43,7 @@ struct Menu {
 	static const char *_passwords[8][3];
 
 	Resource *_res;
-	SystemStub *_stub;
+	Game *_game;
 	Video *_vid;
 
 	int _currentScreen;
@@ -59,7 +59,7 @@ struct Menu {
 	uint8_t _charVar4;
 	uint8_t _charVar5;
 
-	Menu(Resource *res, SystemStub *stub, Video *vid);
+	Menu(Resource *res, Game *game, Video *vid);
 
 	void drawString(const char *str, int16_t y, int16_t x, uint8_t color);
 	void drawString2(const char *str, int16_t y, int16_t x);

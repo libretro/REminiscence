@@ -15,15 +15,49 @@
 #include "seq_player.h"
 #include "video.h"
 
+#define MS_PER_FRAME (1000/50)
+
 struct File;
 struct FileSystem;
 struct SystemStub;
+
+struct PlayerInput {
+	enum {
+		DIR_UP    = 1u << 0u,
+		DIR_DOWN  = 1u << 1u,
+		DIR_LEFT  = 1u << 2u,
+		DIR_RIGHT = 1u << 3u,
+	};
+	enum {
+		DF_FASTMODE = 1u << 0u,
+		DF_DBLOCKS  = 1u << 1u,
+		DF_SETLIFE  = 1u << 2u,
+	};
+
+	uint8_t dirMask;
+	bool    enter;
+	bool    space;
+	bool    shift;
+	bool    backspace;
+	bool    escape;
+
+	char lastChar;
+
+	bool save;
+	bool load;
+	int  stateSlot;
+
+	uint8_t dbgMask;
+	bool    quit;
+};
+
 
 struct Game {
 	typedef int (Game::*pge_OpcodeProc)(ObjectOpcodeArgs *args);
 	typedef int (Game::*pge_ZOrderCallback)(LivePGE *, LivePGE *, uint8_t, uint8_t);
 	typedef int (Game::*col_Callback1)(LivePGE *, LivePGE *, int16_t, int16_t);
 	typedef int (Game::*col_Callback2)(LivePGE *, int16_t, int16_t, int16_t);
+	typedef void *cothread_t;
 
 	enum {
 		CT_UP_ROOM    = 0x00,
@@ -31,6 +65,8 @@ struct Game {
 		CT_RIGHT_ROOM = 0x80,
 		CT_LEFT_ROOM  = 0xC0
 	};
+
+	static Game* instance;
 
 	static const Demo _demoInputs[3];
 	static const Level _gameLevels[];
@@ -47,8 +83,6 @@ struct Game {
 	static const char *_monsterNames[2][4];
 	static const pge_OpcodeProc _pge_opcodeTable[];
 	static const uint8_t _pge_modKeysTable[];
-	static const uint8_t _protectionCodeData[];
-	static const uint8_t _protectionPal[];
 
 	Cutscene _cut;
 	Menu _menu;
@@ -56,7 +90,6 @@ struct Game {
 	Resource _res;
 	SeqPlayer _seq;
 	Video _vid;
-	SystemStub *_stub;
 	FileSystem *_fs;
 	const char *_savePath;
 
@@ -87,10 +120,30 @@ struct Game {
 	bool _endLoop;
 	uint32_t _frameTimestamp;
 
-	Game(SystemStub *, FileSystem *, const char *savePath, int level, Language lang);
+	PlayerInput _pi;
+	bool        running;
+	cothread_t  mainThread;
+	cothread_t  gameThread;
+	uint32_t    _deltaTime;
+	uint32_t    _lastTimestamp;
+	bool        _frameReady;
+
+	Game(FileSystem *, const char *savePath, int level, Language lang);
 
 	void init();
 	void run();
+	void update(uint32_t ts);
+	void yield();
+	void sleep(int ms);
+	void processEvents();
+	bool frameReady() { return _frameReady; };
+	void setFrameReady() { _frameReady = true; };
+	uint32_t getTimeStamp();
+	uint32_t getOutputSampleRate() { return 44100; };
+
+	bool isRunning() { return running; };
+	void processFragment(int16_t *stream, int len);
+	uint32_t* getFramebuffer();
 
 	void resetGameState();
 	void mainLoop();

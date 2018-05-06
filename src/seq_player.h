@@ -10,7 +10,8 @@
 #include "intern.h"
 
 struct File;
-struct SystemStub;
+struct Game;
+struct Video;
 struct Mixer;
 
 struct SeqDemuxer {
@@ -61,7 +62,7 @@ struct SeqPlayer {
 		SoundBufferQueue *next;
 	};
 
-	SeqPlayer(SystemStub *stub, Mixer *mixer);
+	SeqPlayer(Video *vid, Game *game, Mixer *mixer);
 	~SeqPlayer();
 
 	void setBackBuffer(uint8_t *buf) { _buf = buf; }
@@ -69,7 +70,8 @@ struct SeqPlayer {
 	bool mix(int16_t *buf, int len);
 	static bool mixCallback(void *param, int16_t *buf, int len);
 
-	SystemStub *_stub;
+	Video *_vid;
+	Game *_game;
 	uint8_t *_buf;
 	Mixer *_mix;
 	SeqDemuxer _demux;

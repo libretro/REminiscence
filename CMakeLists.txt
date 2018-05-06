@@ -23,7 +23,6 @@ include_directories(3rdparty/libco)
 
 set(LIB_SOURCES
         src/intern.h
-        src/systemstub.h
         src/collision.cpp
         src/cutscene.cpp
         src/file.cpp
@@ -42,7 +41,7 @@ set(LIB_SOURCES
         src/staticres.cpp
         src/unpack.cpp
         src/util.cpp
-        src/video.cpp src/systemstub.cpp)
+        src/video.cpp)
 
 add_library(reminiscence ${LIB_SOURCES})
 
@@ -72,14 +71,13 @@ ENDIF ()
 
 if (BUILD_EXE)
     set(EXE_SOURCES
-            src/systemstub_sdl.cpp
-            src/main.cpp)
+            src/sdlmain.cpp)
 
     find_package(SDL2 REQUIRED)
     include_directories(${SDL2_INCLUDE_DIR})
 
     add_executable(reminiscence-sdl ${EXE_SOURCES})
 
-    target_link_libraries(reminiscence-sdl reminiscence modplug ${SDL2_LIBRARY})
+    target_link_libraries(reminiscence-sdl reminiscence modplug libco ${SDL2_LIBRARY})
 endif ()
 

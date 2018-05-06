@@ -9,7 +9,6 @@
 #include "file.h"
 #include "fs.h"
 #include "game.h"
-#include "systemstub.h"
 #include "util.h"
 #include "video.h"
 

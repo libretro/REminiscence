@@ -15,7 +15,7 @@ static void TO_LE16(uint8_t *dst, uint16_t value) {
 
 static const int TGA_HEADER_SIZE = 18;
 
-void saveTGA(const char *filename, const uint8_t *rgba, int w, int h) {
+void saveTGA(const char *directory, const char *filename, const uint8_t *rgba, int w, int h) {
 
 	static const uint8_t kImageType = kTgaImageTypeRunLengthEncodedTrueColor;
 	uint8_t buffer[TGA_HEADER_SIZE];
@@ -33,7 +33,7 @@ void saveTGA(const char *filename, const uint8_t *rgba, int w, int h) {
 	buffer[17]           = kTgaDirectionTop;  // Descriptor
 
 	File f;
-	if (f.open(filename, "wb", ".")) {
+	if (f.open(filename, "wb", directory)) {
 		f.write(buffer, sizeof(buffer));
 		if (kImageType == kTgaImageTypeUncompressedTrueColor) {
 			for (int i = 0; i < w * h; ++i) {

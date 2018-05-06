@@ -10,12 +10,13 @@
 #include "intern.h"
 
 struct Resource;
-struct SystemStub;
+struct Game;
 
 struct Video {
 	enum {
 		GAMESCREEN_W = 256,
 		GAMESCREEN_H = 224,
+		LAYER_SIZE   = GAMESCREEN_W * GAMESCREEN_H,
 		CHAR_W       = 8,
 		CHAR_H       = 8
 	};
@@ -27,10 +28,8 @@ struct Video {
 	static const uint8_t _font8Jp[];
 
 	Resource   *_res;
-	SystemStub *_stub;
+	Game *_game;
 
-	int     _w, _h;
-	size_t  _layerSize;
 	uint8_t *_frontLayer; // drawing layer
 	uint8_t *_backLayer;  // background layer; used to clear screen between frames
 	uint8_t *_tempLayer;
@@ -42,12 +41,21 @@ struct Video {
 	uint8_t _charShadowColor;
 	uint8_t _shakeOffset;
 
-	Video(Resource *res, SystemStub *stub);
+	uint32_t _rgbPalette[256];
+	uint32_t *_frameBuffer;
+
+	Video(Resource *res, Game *game);
 	~Video();
 
 	void updateScreen();
 	void fadeOut();
 	void fadeOutPalette();
+
+	// frame buffer
+	void setPalette(const uint8_t *pal, int n);
+	void setPaletteEntry(int i, const Color *c);
+	void getPaletteEntry(int i, Color *c);
+	void copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch);
 
 	void setPaletteSlotBE(int palSlot, int palNum);
 	void setPaletteSlotLE(int palSlot, const uint8_t *palData);

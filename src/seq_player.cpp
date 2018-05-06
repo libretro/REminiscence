@@ -8,7 +8,8 @@
 #include "fs.h"
 #include "mixer.h"
 #include "seq_player.h"
-#include "systemstub.h"
+#include "game.h"
+#include "video.h"
 #include "util.h"
 
 bool SeqDemuxer::open(File *f) {
@@ -215,8 +216,8 @@ static const uint8_t *decodeSeqOp3(uint8_t *dst, int pitch, const uint8_t *src) 
 	return src;
 }
 
-SeqPlayer::SeqPlayer(SystemStub *stub, Mixer *mixer)
-	: _stub(stub), _buf(0), _mix(mixer) {
+SeqPlayer::SeqPlayer(Video *vid, Game *game, Mixer *mixer)
+	: _vid(vid), _game(game), _buf(0), _mix(mixer) {
 	_soundQueuePreloadSize = 0;
 	_soundQueue = 0;
 }
@@ -228,16 +229,16 @@ void SeqPlayer::play(File *f) {
 	if (_demux.open(f)) {
 		Color pal[256];
 		for (int i = 0; i < 256; ++i) {
-			_stub->getPaletteEntry(i, &pal[i]);
+			_vid->getPaletteEntry(i, &pal[i]);
 		}
 		_mix->setPremixHook(mixCallback, this);
 		memset(_buf, 0, 256 * 224);
 		bool clearScreen = true;
 		while (true) {
-			const uint32_t nextFrameTimeStamp = _stub->getTimeStamp() + 1000 / 25;
-			_stub->processEvents();
-			if (_stub->_pi.quit || _stub->_pi.backspace) {
-				_stub->_pi.backspace = false;
+			const uint32_t nextFrameTimeStamp = _game->getTimeStamp() + 1000 / 25;
+			_game->processEvents();
+			if (_game->_pi.quit || _game->_pi.backspace) {
+				_game->_pi.backspace = false;
 				break;
 			}
 			if (!_demux.readFrameData()) {
@@ -258,7 +259,6 @@ void SeqPlayer::play(File *f) {
 					}
 				}
 				if (sbq) {
-					LockAudioStack las(_stub);
 					if (!_soundQueue) {
 						_soundQueue = sbq;
 					} else {
@@ -279,7 +279,7 @@ void SeqPlayer::play(File *f) {
 				for (int i = 0; i < 256 * 3; ++i) {
 					buf[i] = (buf[i] << 2) | (buf[i] & 3);
 				}
-				_stub->setPalette(buf, 256);
+				_vid->setPalette(buf, 256);
 			}
 			if (_demux._videoData != -1) {
 				const int y0 = (224 - kVideoHeight) / 2;
@@ -304,24 +304,24 @@ void SeqPlayer::play(File *f) {
 				}
 				if (clearScreen) {
 					clearScreen = false;
-					_stub->copyRect(0, 0, kVideoWidth, 224, _buf, 256);
+					_vid->copyRect(0, 0, kVideoWidth, 224, _buf, 256);
 				} else {
-					_stub->copyRect(0, y0, kVideoWidth, kVideoHeight, _buf, 256);
+					_vid->copyRect(0, y0, kVideoWidth, kVideoHeight, _buf, 256);
 				}
-				_stub->updateScreen(0);
+				_game->setFrameReady();
+				_game->yield();
 			}
-			const int diff = nextFrameTimeStamp - _stub->getTimeStamp();
+			const int diff = nextFrameTimeStamp - _game->getTimeStamp();
 			if (diff > 0) {
-				_stub->sleep(diff);
+				_game->sleep(diff);
 			}
 		}
 		for (int i = 0; i < 256; ++i) {
-			_stub->setPaletteEntry(i, &pal[i]);
+			_vid->setPaletteEntry(i, &pal[i]);
 		}
 		_mix->setPremixHook(0, 0);
 		_demux.close();
 		// flush sound queue
-		LockAudioStack las(_stub);
 		while (_soundQueue) {
 			SoundBufferQueue *next = _soundQueue->next;
 			free(_soundQueue->data);

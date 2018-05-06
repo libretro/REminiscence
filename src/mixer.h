@@ -38,7 +38,7 @@ struct MixerChannel {
 };
 
 struct FileSystem;
-struct SystemStub;
+struct Game;
 
 struct Mixer {
 	typedef bool (*PremixHook)(void *userData, int16_t *buf, int len);
@@ -56,7 +56,7 @@ struct Mixer {
 		MAX_VOLUME = 64
 	};
 
-	SystemStub *_stub;
+	Game *_game;
 	MixerChannel _channels[NUM_CHANNELS];
 	PremixHook _premixHook;
 	void *_premixHookData;
@@ -64,7 +64,7 @@ struct Mixer {
 	ModPlayer _mod;
 	SfxPlayer _sfx;
 
-	Mixer(FileSystem *fs, SystemStub *stub);
+	Mixer(FileSystem *fs, Game *game);
 	void init();
 	void free();
 	void setPremixHook(PremixHook premixHook, void *userData);

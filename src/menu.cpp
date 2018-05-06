@@ -7,12 +7,11 @@
 #include "game.h"
 #include "menu.h"
 #include "resource.h"
-#include "systemstub.h"
 #include "util.h"
 #include "video.h"
 
-Menu::Menu(Resource *res, SystemStub *stub, Video *vid)
-	: _res(res), _stub(stub), _vid(vid) {
+Menu::Menu(Resource *res, Game *stub, Video *vid)
+	: _res(res), _game(stub), _vid(vid) {
 	_skill = 1;
 	_level = 0;
 }
@@ -81,7 +80,7 @@ void Menu::loadPicture(const char *prefix) {
 		}
 	}
 	_res->load_PAL_menu(prefix, _res->_scratchBuffer);
-	_stub->setPalette(_res->_scratchBuffer, 256);
+	_vid->setPalette(_res->_scratchBuffer, 256);
 }
 
 void Menu::handleInfoScreen() {
@@ -94,17 +93,17 @@ void Menu::handleInfoScreen() {
 	}
 	_vid->updateScreen();
 	do {
-		_stub->sleep(EVENTS_DELAY);
-		_stub->processEvents();
-		if (_stub->_pi.escape) {
-			_stub->_pi.escape = false;
+		_game->sleep(EVENTS_DELAY);
+		_game->processEvents();
+		if (_game->_pi.escape) {
+			_game->_pi.escape = false;
 			break;
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_game->_pi.enter) {
+			_game->_pi.enter = false;
 			break;
 		}
-	} while (!_stub->_pi.quit);
+	} while (!_game->_pi.quit);
 }
 
 void Menu::handleSkillScreen() {
@@ -124,35 +123,35 @@ void Menu::handleSkillScreen() {
 		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 19, 14, colors[skill_level][2]);
 
 		_vid->updateScreen();
-		_stub->sleep(EVENTS_DELAY);
-		_stub->processEvents();
+		_game->sleep(EVENTS_DELAY);
+		_game->processEvents();
 
-		if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_UP;
 			if (skill_level != 0) {
 				--skill_level;
 			} else {
 				skill_level = 2;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_game->_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			if (skill_level != 2) {
 				++skill_level;
 			} else {
 				skill_level = 0;
 			}
 		}
-		if (_stub->_pi.escape) {
-			_stub->_pi.escape = false;
+		if (_game->_pi.escape) {
+			_game->_pi.escape = false;
 			break;
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_game->_pi.enter) {
+			_game->_pi.enter = false;
 			_skill = skill_level;
 			return;
 		}
-	} while (!_stub->_pi.quit);
+	} while (!_game->_pi.quit);
 	_skill = 1;
 }
 
@@ -175,11 +174,11 @@ bool Menu::handlePasswordScreen() {
 		_vid->PC_drawChar(0x20, 21, len + 15);
 
 		_vid->updateScreen();
-		_stub->sleep(EVENTS_DELAY);
-		_stub->processEvents();
-		char c = _stub->_pi.lastChar;
+		_game->sleep(EVENTS_DELAY);
+		_game->processEvents();
+		char c = _game->_pi.lastChar;
 		if (c != 0) {
-			_stub->_pi.lastChar = 0;
+			_game->_pi.lastChar = 0;
 			if (len < 6) {
 				if (c >= 'a' && c <= 'z') {
 					c &= ~0x20;
@@ -190,18 +189,18 @@ bool Menu::handlePasswordScreen() {
 				}
 			}
 		}
-		if (_stub->_pi.backspace) {
-			_stub->_pi.backspace = false;
+		if (_game->_pi.backspace) {
+			_game->_pi.backspace = false;
 			if (len > 0) {
 				--len;
 			}
 		}
-		if (_stub->_pi.escape) {
-			_stub->_pi.escape = false;
+		if (_game->_pi.escape) {
+			_game->_pi.escape = false;
 			break;
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_game->_pi.enter) {
+			_game->_pi.enter = false;
 			password[len] = '\0';
 			for (int level = 0; level < 8; ++level) {
 				for (int skill = 0; skill < 3; ++skill) {
@@ -214,7 +213,7 @@ bool Menu::handlePasswordScreen() {
 			}
 			return false;
 		}
-	} while (!_stub->_pi.quit);
+	} while (!_game->_pi.quit);
 	return false;
 }
 
@@ -243,52 +242,52 @@ bool Menu::handleLevelScreen() {
 		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 23, 24, (currentSkill == 2) ? 2 : 3);
 
 		_vid->updateScreen();
-		_stub->sleep(EVENTS_DELAY);
-		_stub->processEvents();
+		_game->sleep(EVENTS_DELAY);
+		_game->processEvents();
 
-		if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_UP;
 			if (currentLevel != 0) {
 				--currentLevel;
 			} else {
 				currentLevel = 6;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_game->_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			if (currentLevel != 6) {
 				++currentLevel;
 			} else {
 				currentLevel = 0;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_LEFT) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+		if (_game->_pi.dirMask & PlayerInput::DIR_LEFT) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_LEFT;
 			if (currentSkill != 0) {
 				--currentSkill;
 			} else {
 				currentSkill = 2;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_RIGHT) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+		if (_game->_pi.dirMask & PlayerInput::DIR_RIGHT) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
 			if (currentSkill != 2) {
 				++currentSkill;
 			} else {
 				currentSkill = 0;
 			}
 		}
-		if (_stub->_pi.escape) {
-			_stub->_pi.escape = false;
+		if (_game->_pi.escape) {
+			_game->_pi.escape = false;
 			break;
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_game->_pi.enter) {
+			_game->_pi.enter = false;
 			_skill = currentSkill;
 			_level = currentLevel;
 			return true;
 		}
-	} while (!_stub->_pi.quit);
+	} while (!_game->_pi.quit);
 	return false;
 }
 
@@ -354,27 +353,27 @@ void Menu::handleTitleScreen() {
 		}
 
 		_vid->updateScreen();
-		_stub->sleep(EVENTS_DELAY);
-		_stub->processEvents();
+		_game->sleep(EVENTS_DELAY);
+		_game->processEvents();
 
-		if (_stub->_pi.dirMask & PlayerInput::DIR_UP) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_UP;
 			if (currentEntry != 0) {
 				--currentEntry;
 			} else {
 				currentEntry = menuItemsCount - 1;
 			}
 		}
-		if (_stub->_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_stub->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_game->_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_game->_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			if (currentEntry != menuItemsCount - 1) {
 				++currentEntry;
 			} else {
 				currentEntry = 0;
 			}
 		}
-		if (_stub->_pi.enter) {
-			_stub->_pi.enter = false;
+		if (_game->_pi.enter) {
+			_game->_pi.enter = false;
 			selectedItem = currentEntry;
 		}
 
@@ -409,7 +408,7 @@ void Menu::handleTitleScreen() {
 			}
 			_nextScreen = SCREEN_TITLE;
 		}
-		if (_stub->_pi.quit) {
+		if (_game->_pi.quit) {
 			break;
 		}
 	}

@@ -4,6 +4,6 @@
 
 #include <stdint.h>
 
-void saveTGA(const char *filename, const uint8_t *rgb, int w, int h);
+void saveTGA(const char *directory, const char *filename, const uint8_t *rgba, int w, int h);
 
 #endif
