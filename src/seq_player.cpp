@@ -237,8 +237,8 @@ void SeqPlayer::play(File *f) {
 		while (true) {
 			const uint32_t nextFrameTimeStamp = _game->getTimeStamp() + 1000 / 25;
 			_game->processEvents();
-			if (_game->_pi.quit || _game->_pi.backspace) {
-				_game->_pi.backspace = false;
+			if (_game->_pi.quit || _game->_pi.inventory_skip) {
+				_game->_pi.inventory_skip = false;
 				break;
 			}
 			if (!_demux.readFrameData()) {

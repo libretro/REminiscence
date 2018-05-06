@@ -20,13 +20,17 @@ Game *Game::instance;
 Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, this, &_vid), _menu(&_res, this, &_vid),
 	  _mix(fs, this), _res(fs, lang), _vid(&_res, this), _seq(&_vid, this, &_mix),
-	  _fs(fs), _savePath(savePath) {
+	  _fs(fs), _savePath(savePath), _sleep(0) {
 	_stateSlot = 1;
 	_inp_demPos = 0;
 	_skillLevel = _menu._skill = 1;
 	_currentLevel = _menu._level = level;
 	_demoBin = -1;
 	Game::instance = this;
+}
+
+Game::~Game() {
+	Game::instance = nullptr;
 }
 
 void Game::init() {
@@ -129,9 +133,9 @@ void Game::run() {
 			}
 			// flush inputs
 			_pi.dirMask = 0;
-			_pi.enter = false;
-			_pi.space = false;
-			_pi.shift = false;
+			_pi.use = false;
+			_pi.weapon = false;
+			_pi.action = false;
 		}
 	}
 
@@ -140,15 +144,8 @@ void Game::run() {
 	_res.fini();
 }
 
-void Game::update(uint32_t ts) {
-	_deltaTime     = ts - _lastTimestamp;
-	_lastTimestamp = ts;
-
-	// slow?
-	int count = _deltaTime / MS_PER_FRAME;
-	if (count > 0) {
-		debug(DBG_GAME, "slow by %d frames\n", count);
-	}
+void Game::tick() {
+	_lastTimestamp += MS_PER_FRAME;
 	co_switch(gameThread);
 }
 
@@ -157,9 +154,12 @@ void Game::yield() {
 }
 
 void Game::sleep(int ms) {
-	while (ms > 0) {
+	const int ms_per_frame = 1000 / getFrameRate();
+	_sleep += ms;
+
+	while (_sleep >= ms_per_frame) {
 		yield();
-		ms -= _deltaTime;
+		_sleep -= ms_per_frame;
 	}
 }
 
@@ -175,7 +175,7 @@ void Game::processFragment(int16_t *stream, int len) {
 	_mix.mix(stream, len);
 }
 
-uint32_t* Game::getFramebuffer() {
+uint32_t* Game::getFrameBuffer() {
 	return _vid._frameBuffer;
 }
 
@@ -228,7 +228,7 @@ void Game::mainLoop() {
 			return;
 		}
 	}
-	memcpy(_vid._frontLayer, _vid._backLayer, Video::LAYER_SIZE);
+	memcpy(_vid._frontLayer, _vid._backLayer, Video::GAMESCREEN_SIZE);
 	pge_getInput();
 	pge_prepare();
 	col_prepareRoomState();
@@ -270,8 +270,8 @@ void Game::mainLoop() {
 	_vid.updateScreen();
 	updateTiming();
 	drawStoryTexts();
-	if (_pi.backspace) {
-		_pi.backspace = false;
+	if (_pi.inventory_skip) {
+		_pi.inventory_skip = false;
 		handleInventory();
 	}
 	if (_pi.escape) {
@@ -419,8 +419,8 @@ void Game::showFinalScore() {
 		setFrameReady();
 		yield();
 		processEvents();
-		if (_pi.enter) {
-			_pi.enter = false;
+		if (_pi.use) {
+			_pi.use = false;
 			break;
 		}
 		sleep(100);
@@ -515,8 +515,8 @@ bool Game::handleConfigPanel() {
 		if (prev != current) {
 			SWAP(colors[prev], colors[current]);
 		}
-		if (_pi.enter) {
-			_pi.enter = false;
+		if (_pi.use) {
+			_pi.use = false;
 			switch (current) {
 			case MENU_ITEM_LOAD:
 				_pi.load = true;
@@ -543,7 +543,7 @@ bool Game::handleContinueAbort() {
 	uint8_t color_inc = 0xFF;
 	Color col;
 	_vid.getPaletteEntry(0xE4, &col);
-	memcpy(_vid._tempLayer, _vid._frontLayer, Video::LAYER_SIZE);
+	memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
 	while (timeout >= 0 && !_pi.quit) {
 		const char *str;
 		str = _res.getMenuString(LocaleData::LI_01_CONTINUE_OR_ABORT);
@@ -572,8 +572,8 @@ bool Game::handleContinueAbort() {
 				++current_color;
 			}
 		}
-		if (_pi.enter) {
-			_pi.enter = false;
+		if (_pi.use) {
+			_pi.use = false;
 			return (current_color == 0);
 		}
 		_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
@@ -598,7 +598,7 @@ bool Game::handleContinueAbort() {
 		processEvents();
 		sleep(100);
 		--timeout;
-		memcpy(_vid._frontLayer, _vid._tempLayer, Video::LAYER_SIZE);
+		memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
 	}
 	return false;
 }
@@ -660,7 +660,7 @@ void Game::drawStoryTexts() {
 	if (_textToDisplay != 0xFFFF) {
 		uint8_t textColor = 0xE8;
 		const uint8_t *str = _res.getGameString(_textToDisplay);
-		memcpy(_vid._tempLayer, _vid._frontLayer, Video::LAYER_SIZE);
+		memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
 		int textSpeechSegment = 0;
 		while (!_pi.quit) {
 			drawIcon(_currentInventoryIconNum, 80, 8, 0xA);
@@ -700,7 +700,7 @@ void Game::drawStoryTexts() {
 				_mix.play(&chunk, 32000, Mixer::MAX_VOLUME);
 			}
 			_vid.updateScreen();
-			while (!_pi.backspace && !_pi.quit) {
+			while (!_pi.inventory_skip && !_pi.quit) {
 				if (chunk.data && !_mix.isPlaying(&chunk)) {
 					break;
 				}
@@ -711,12 +711,12 @@ void Game::drawStoryTexts() {
 				_mix.stopAll();
 				free(chunk.data);
 			}
-			_pi.backspace = false;
+			_pi.inventory_skip = false;
 			if (*str == 0) {
 				break;
 			}
 			++str;
-			memcpy(_vid._frontLayer, _vid._tempLayer, Video::LAYER_SIZE);
+			memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
 		}
 		_textToDisplay = 0xFFFF;
 	}
@@ -1288,7 +1288,7 @@ void Game::handleInventory() {
 		int num_lines = (num_items - 1) / 4 + 1;
 		int current_line = 0;
 		bool display_score = false;
-		while (!_pi.backspace && !_pi.quit) {
+		while (!_pi.inventory_skip && !_pi.quit) {
 			// draw inventory background
 			int icon_h = 5;
 			int icon_y = 140;
@@ -1378,12 +1378,12 @@ void Game::handleInventory() {
 					}
 				}
 			}
-			if (_pi.enter) {
-				_pi.enter = false;
+			if (_pi.use) {
+				_pi.use = false;
 				display_score = !display_score;
 			}
 		}
-		_pi.backspace = false;
+		_pi.inventory_skip = false;
 		if (selected_pge) {
 			pge_setCurrentInventoryObject(selected_pge);
 		}
@@ -1396,10 +1396,10 @@ void Game::inp_update() {
 	if (_demoBin != -1 && _inp_demPos < _res._demLen) {
 		const int keymask = _res._dem[_inp_demPos++];
 		_pi.dirMask = keymask & 0xF;
-		_pi.enter = (keymask & 0x10) != 0;
-		_pi.space = (keymask & 0x20) != 0;
-		_pi.shift = (keymask & 0x40) != 0;
-		_pi.backspace = (keymask & 0x80) != 0;
+		_pi.use = (keymask & 0x10) != 0;
+		_pi.weapon = (keymask & 0x20) != 0;
+		_pi.action = (keymask & 0x40) != 0;
+		_pi.inventory_skip = (keymask & 0x80) != 0;
 	}
 }
 

@@ -495,13 +495,13 @@ void Game::pge_getInput() {
 		_pge_inpKeysMask = _inp_lastKeysHit;
 		_inp_lastKeysHitLeftRight = _inp_lastKeysHit;
 	}
-	if (_pi.enter) {
+	if (_pi.use) {
 		_pge_inpKeysMask |= 0x10;
 	}
-	if (_pi.space) {
+	if (_pi.weapon) {
 		_pge_inpKeysMask |= 0x20;
 	}
-	if (_pi.shift) {
+	if (_pi.action) {
 		_pge_inpKeysMask |= 0x40;
 	}
 }

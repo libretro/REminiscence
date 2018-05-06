@@ -19,7 +19,6 @@
 
 struct File;
 struct FileSystem;
-struct SystemStub;
 
 struct PlayerInput {
 	enum {
@@ -35,10 +34,10 @@ struct PlayerInput {
 	};
 
 	uint8_t dirMask;
-	bool    enter;
-	bool    space;
-	bool    shift;
-	bool    backspace;
+	bool    use;
+	bool    weapon;
+	bool    action;
+	bool    inventory_skip;
 	bool    escape;
 
 	char lastChar;
@@ -66,84 +65,92 @@ struct Game {
 		CT_LEFT_ROOM  = 0xC0
 	};
 
-	static Game* instance;
+	static Game *instance;
 
-	static const Demo _demoInputs[3];
-	static const Level _gameLevels[];
-	static const uint16_t _scoreTable[];
-	static const uint8_t _monsterListLevel1[];
-	static const uint8_t _monsterListLevel2[];
-	static const uint8_t _monsterListLevel3[];
-	static const uint8_t _monsterListLevel4_1[];
-	static const uint8_t _monsterListLevel4_2[];
-	static const uint8_t _monsterListLevel5_1[];
-	static const uint8_t _monsterListLevel5_2[];
-	static const uint8_t *_monsterListLevels[];
-	static const uint8_t _monsterPals[4][32];
-	static const char *_monsterNames[2][4];
+	static const Demo           _demoInputs[3];
+	static const Level          _gameLevels[];
+	static const uint16_t       _scoreTable[];
+	static const uint8_t        _monsterListLevel1[];
+	static const uint8_t        _monsterListLevel2[];
+	static const uint8_t        _monsterListLevel3[];
+	static const uint8_t        _monsterListLevel4_1[];
+	static const uint8_t        _monsterListLevel4_2[];
+	static const uint8_t        _monsterListLevel5_1[];
+	static const uint8_t        _monsterListLevel5_2[];
+	static const uint8_t        *_monsterListLevels[];
+	static const uint8_t        _monsterPals[4][32];
+	static const char           *_monsterNames[2][4];
 	static const pge_OpcodeProc _pge_opcodeTable[];
-	static const uint8_t _pge_modKeysTable[];
+	static const uint8_t        _pge_modKeysTable[];
 
-	Cutscene _cut;
-	Menu _menu;
-	Mixer _mix;
-	Resource _res;
-	SeqPlayer _seq;
-	Video _vid;
+	Cutscene   _cut;
+	Menu       _menu;
+	Mixer      _mix;
+	Resource   _res;
+	SeqPlayer  _seq;
+	Video      _vid;
 	FileSystem *_fs;
 	const char *_savePath;
 
-	const uint8_t *_stringsTable;
-	const char **_textsTable;
-	uint8_t _currentLevel;
-	uint8_t _skillLevel;
-	int _demoBin;
-	uint32_t _score;
-	uint8_t _currentRoom;
-	uint8_t _currentIcon;
-	bool _loadMap;
-	uint8_t _printLevelCodeCounter;
-	uint32_t _randSeed;
-	uint16_t _currentInventoryIconNum;
-	uint16_t _curMonsterFrame;
-	uint16_t _curMonsterNum;
-	uint8_t _blinkingConradCounter;
-	uint16_t _textToDisplay;
-	bool _eraseBackground;
+	const uint8_t   *_stringsTable;
+	const char      **_textsTable;
+	uint8_t         _currentLevel;
+	uint8_t         _skillLevel;
+	int             _demoBin;
+	uint32_t        _score;
+	uint8_t         _currentRoom;
+	uint8_t         _currentIcon;
+	bool            _loadMap;
+	uint8_t         _printLevelCodeCounter;
+	uint32_t        _randSeed;
+	uint16_t        _currentInventoryIconNum;
+	uint16_t        _curMonsterFrame;
+	uint16_t        _curMonsterNum;
+	uint8_t         _blinkingConradCounter;
+	uint16_t        _textToDisplay;
+	bool            _eraseBackground;
 	AnimBufferState _animBuffer0State[41];
 	AnimBufferState _animBuffer1State[6]; // Conrad
 	AnimBufferState _animBuffer2State[42];
 	AnimBufferState _animBuffer3State[12];
-	AnimBuffers _animBuffers;
-	uint16_t _deathCutsceneCounter;
-	bool _saveStateCompleted;
-	bool _endLoop;
-	uint32_t _frameTimestamp;
+	AnimBuffers     _animBuffers;
+	uint16_t        _deathCutsceneCounter;
+	bool            _saveStateCompleted;
+	bool            _endLoop;
+	uint32_t        _frameTimestamp;
 
 	PlayerInput _pi;
 	bool        running;
 	cothread_t  mainThread;
 	cothread_t  gameThread;
-	uint32_t    _deltaTime;
+	uint32_t    _sleep;
 	uint32_t    _lastTimestamp;
 	bool        _frameReady;
 
 	Game(FileSystem *, const char *savePath, int level, Language lang);
+	~Game();
 
 	void init();
 	void run();
-	void update(uint32_t ts);
+
+	void tick();
+
 	void yield();
 	void sleep(int ms);
 	void processEvents();
+
 	bool frameReady() { return _frameReady; };
+
 	void setFrameReady() { _frameReady = true; };
 	uint32_t getTimeStamp();
+
 	uint32_t getOutputSampleRate() { return 44100; };
+
+	uint32_t getFrameRate() { return 50; };
 
 	bool isRunning() { return running; };
 	void processFragment(int16_t *stream, int len);
-	uint32_t* getFramebuffer();
+	uint32_t *getFrameBuffer();
 
 	void resetGameState();
 	void mainLoop();
@@ -178,17 +185,17 @@ struct Game {
 	void handleInventory();
 
 	// pieges
-	bool _pge_playAnimSound;
+	bool     _pge_playAnimSound;
 	GroupPGE _pge_groups[256];
 	GroupPGE *_pge_groupsTable[256];
 	GroupPGE *_pge_nextFreeGroup;
-	LivePGE *_pge_liveTable2[256]; // active pieges list (index = pge number)
-	LivePGE *_pge_liveTable1[256]; // pieges list by room (index = room)
-	LivePGE _pgeLive[256];
-	uint8_t _pge_currentPiegeRoom;
-	bool _pge_currentPiegeFacingDir; // (false == left)
-	bool _pge_processOBJ;
-	uint8_t _pge_inpKeysMask;
+	LivePGE  *_pge_liveTable2[256]; // active pieges list (index = pge number)
+	LivePGE  *_pge_liveTable1[256]; // pieges list by room (index = room)
+	LivePGE  _pgeLive[256];
+	uint8_t  _pge_currentPiegeRoom;
+	bool     _pge_currentPiegeFacingDir; // (false == left)
+	bool     _pge_processOBJ;
+	uint8_t  _pge_inpKeysMask;
 	uint16_t _pge_opTempVar1;
 	uint16_t _pge_opTempVar2;
 	uint16_t _pge_compareVar1;
@@ -368,18 +375,18 @@ struct Game {
 
 
 	// collision
-	CollisionSlot _col_slots[256];
-	uint8_t _col_curPos;
-	CollisionSlot *_col_slotsTable[256];
-	CollisionSlot *_col_curSlot;
+	CollisionSlot  _col_slots[256];
+	uint8_t        _col_curPos;
+	CollisionSlot  *_col_slotsTable[256];
+	CollisionSlot  *_col_curSlot;
 	CollisionSlot2 _col_slots2[256];
 	CollisionSlot2 *_col_slots2Cur;
 	CollisionSlot2 *_col_slots2Next;
-	uint8_t _col_activeCollisionSlots[0x30 * 3]; // left, current, right
-	uint8_t _col_currentLeftRoom;
-	uint8_t _col_currentRightRoom;
-	int16_t _col_currentPiegeGridPosX;
-	int16_t _col_currentPiegeGridPosY;
+	uint8_t        _col_activeCollisionSlots[0x30 * 3]; // left, current, right
+	uint8_t        _col_currentLeftRoom;
+	uint8_t        _col_currentRightRoom;
+	int16_t        _col_currentPiegeGridPosX;
+	int16_t        _col_currentPiegeGridPosY;
 
 	void col_prepareRoomState();
 	void col_clearState();
@@ -389,7 +396,8 @@ struct Game {
 	uint16_t col_getGridPos(LivePGE *pge, int16_t dx);
 	int16_t col_getGridData(LivePGE *pge, int16_t dy, int16_t dx);
 	uint8_t col_findCurrentCollidingObject(LivePGE *pge, uint8_t n1, uint8_t n2, uint8_t n3, LivePGE **pge_out);
-	int16_t col_detectHit(LivePGE *pge, int16_t arg2, int16_t arg4, col_Callback1 callback1, col_Callback2 callback2, int16_t argA, int16_t argC);
+	int16_t col_detectHit(LivePGE *pge, int16_t arg2, int16_t arg4, col_Callback1 callback1, col_Callback2 callback2,
+	                      int16_t argA, int16_t argC);
 	int col_detectHitCallback2(LivePGE *pge1, LivePGE *pge2, int16_t unk1, int16_t unk2);
 	int col_detectHitCallback3(LivePGE *pge1, LivePGE *pge2, int16_t unk1, int16_t unk2);
 	int col_detectHitCallback4(LivePGE *pge1, LivePGE *pge2, int16_t unk1, int16_t unk2);
@@ -400,13 +408,14 @@ struct Game {
 	int col_detectGunHitCallback1(LivePGE *pge, int16_t arg2, int16_t arg4, int16_t arg6);
 	int col_detectGunHitCallback2(LivePGE *pge1, LivePGE *pge2, int16_t arg4, int16_t);
 	int col_detectGunHitCallback3(LivePGE *pge1, LivePGE *pge2, int16_t arg4, int16_t);
-	int col_detectGunHit(LivePGE *pge, int16_t arg2, int16_t arg4, col_Callback1 callback1, col_Callback2 callback2, int16_t argA, int16_t argC);
+	int col_detectGunHit(LivePGE *pge, int16_t arg2, int16_t arg4, col_Callback1 callback1, col_Callback2 callback2,
+	                     int16_t argA, int16_t argC);
 
 
 	// input
 	uint8_t _inp_lastKeysHit;
 	uint8_t _inp_lastKeysHitLeftRight;
-	int _inp_demPos;
+	int     _inp_demPos;
 
 	void inp_handleSpecialKeys();
 	void inp_update();
@@ -414,7 +423,7 @@ struct Game {
 
 	// save/load state
 	uint8_t _stateSlot;
-	bool _validSaveState;
+	bool    _validSaveState;
 
 	void makeGameStateName(uint8_t slot, char *buf);
 	bool saveGameState(uint8_t slot);

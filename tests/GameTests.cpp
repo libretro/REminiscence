@@ -14,14 +14,14 @@ TEST(IndependentMethod, ResetsToZero) {
 	Game *g = new Game(&fs, "", 0, Language::LANG_EN);
 	g->init();
 
-	g->update(TS_SECONDS(15));
+	g->tick();
 	std::cerr << "back 1" << std::endl;
 	g->_pi.quit = true;
-	g->update(TS_SECONDS(1));
+	g->tick();
 	std::cerr << "back 3" << std::endl;
 	EXPECT_FALSE(g->isRunning());
 
 	char dir[512];
 	snprintf(dir, sizeof(dir), "%s/tmp", getenv("HOME"));
-	saveTGA(dir, "screenshot.tga", (const uint8_t *)g->getFramebuffer(), Video::GAMESCREEN_W, Video::GAMESCREEN_H);
+	saveTGA(dir, "screenshot.tga", (const uint8_t *) g->getFrameBuffer(), Video::GAMESCREEN_W, Video::GAMESCREEN_H);
 }

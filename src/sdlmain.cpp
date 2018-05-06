@@ -170,16 +170,16 @@ void processEvent(const SDL_Event &ev, PlayerInput &_pi, SDL_Joystick *_joystick
 			const bool pressed = (ev.jbutton.state == SDL_PRESSED);
 			switch (ev.jbutton.button) {
 			case 0:
-				_pi.space = pressed;
+				_pi.weapon = pressed;
 				break;
 			case 1:
-				_pi.shift = pressed;
+				_pi.action = pressed;
 				break;
 			case 2:
-				_pi.enter = pressed;
+				_pi.use = pressed;
 				break;
 			case 3:
-				_pi.backspace = pressed;
+				_pi.inventory_skip = pressed;
 				break;
 			}
 		}
@@ -222,16 +222,16 @@ void processEvent(const SDL_Event &ev, PlayerInput &_pi, SDL_Joystick *_joystick
 			const bool pressed = (ev.cbutton.state == SDL_PRESSED);
 			switch (ev.cbutton.button) {
 			case SDL_CONTROLLER_BUTTON_A:
-				_pi.enter = pressed;
+				_pi.use = pressed; // USE
 				break;
 			case SDL_CONTROLLER_BUTTON_B:
-				_pi.space = pressed;
+				_pi.weapon = pressed; // ARM / DRAW or HOLSTER
 				break;
 			case SDL_CONTROLLER_BUTTON_X:
-				_pi.shift = pressed;
+				_pi.action = pressed; // ACTION
 				break;
 			case SDL_CONTROLLER_BUTTON_Y:
-				_pi.backspace = pressed;
+				_pi.inventory_skip = pressed; // INVENTORY / SKIP ANIMATION
 				break;
 			case SDL_CONTROLLER_BUTTON_BACK:
 			case SDL_CONTROLLER_BUTTON_START:
@@ -312,14 +312,14 @@ void processEvent(const SDL_Event &ev, PlayerInput &_pi, SDL_Joystick *_joystick
 			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
 			break;
 		case SDLK_SPACE:
-			_pi.space = false;
+			_pi.weapon = false;
 			break;
 		case SDLK_RSHIFT:
 		case SDLK_LSHIFT:
-			_pi.shift = false;
+			_pi.action = false;
 			break;
 		case SDLK_RETURN:
-			_pi.enter = false;
+			_pi.use = false;
 			break;
 		case SDLK_ESCAPE:
 			_pi.escape = false;
@@ -347,17 +347,17 @@ void processEvent(const SDL_Event &ev, PlayerInput &_pi, SDL_Joystick *_joystick
 			break;
 		case SDLK_BACKSPACE:
 		case SDLK_TAB:
-			_pi.backspace = true;
+			_pi.inventory_skip = true;
 			break;
 		case SDLK_SPACE:
-			_pi.space = true;
+			_pi.weapon = true;
 			break;
 		case SDLK_RSHIFT:
 		case SDLK_LSHIFT:
-			_pi.shift = true;
+			_pi.action = true;
 			break;
 		case SDLK_RETURN:
-			_pi.enter = true;
+			_pi.use = true;
 			break;
 		case SDLK_ESCAPE:
 			_pi.escape = true;
@@ -456,10 +456,8 @@ int main(int argc, char *argv[]) {
 	SDL_Window *window = nullptr;
 	SDL_Renderer *renderer = nullptr;
 	SDL_Texture *texture = nullptr;
-	int _texW, _texH;
 	SDL_GameController *controller = nullptr;
 	SDL_Joystick *joystick = nullptr;
-	SDL_PixelFormat *fmt = nullptr;
 
 	// joystick
 	if (SDL_NumJoysticks() > 0) {
@@ -490,7 +488,7 @@ int main(int argc, char *argv[]) {
 	memset(&desired, 0, sizeof(desired));
 	memset(&spec, 0, sizeof(spec));
 
-	uint16_t samplesPerFrame = g->getOutputSampleRate()/50;
+	uint16_t samplesPerFrame = g->getOutputSampleRate()/g->getFrameRate();
 	uint16_t samples = samplesPerFrame*2;
 
 	desired.freq = g->getOutputSampleRate();
@@ -500,16 +498,11 @@ int main(int argc, char *argv[]) {
 	auto dev = SDL_OpenAudioDevice(nullptr, 0, &desired, &spec, 0);
 	SDL_PauseAudioDevice(dev, 0);
 
-	uint32_t start = SDL_GetTicks();
-	uint32_t last = 0;
-
 	while(!g->_pi.quit) {
-		uint32_t ts = SDL_GetTicks() - start;
-		g->update(ts);
-		uint32_t delta = ts-last;
-		last = ts;
+		uint32_t start = SDL_GetTicks();
+		g->tick();
 
-		SDL_UpdateTexture(texture, nullptr, g->getFramebuffer(), Video::GAMESCREEN_W * sizeof(uint32_t));
+		SDL_UpdateTexture(texture, nullptr, g->getFrameBuffer(), Video::GAMESCREEN_W * sizeof(uint32_t));
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
 		SDL_RenderPresent(renderer);
@@ -531,10 +524,12 @@ int main(int argc, char *argv[]) {
 			SDL_QueueAudio(dev, buf, (samples-qa)*sizeof(int16_t));
 		}
 
-//		int sleep = MS_PER_FRAME - delta;
-//		if (sleep > 0) {
-//			SDL_Delay(static_cast<Uint32>(sleep));
-//		}
+		uint32_t delta = SDL_GetTicks() - start;
+
+		int sleep = MS_PER_FRAME - delta;
+		if (sleep > 0) {
+			SDL_Delay(static_cast<Uint32>(sleep));
+		}
 	}
 
 	delete g;

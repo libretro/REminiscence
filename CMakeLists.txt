@@ -6,6 +6,7 @@ list(APPEND CMAKE_MODULE_PATH ${reminiscence_SOURCE_DIR}/cmake)
 
 # Allow the developer to select if Dynamic or Static libraries are built
 option(BUILD_EXE "Build executable" ON)
+option(BUILD_CORE "Build libretro core" ON)
 option(USE_MODPLUG "Use modplug" ON)
 option(BUILD_TESTS "Build all unit tests." ON)
 set(TESTS_DATA_PATH "${CMAKE_SOURCE_DIR}/data" CACHE STRING "Path to data files for unit tests (./data)")
@@ -22,26 +23,26 @@ include_directories(src)
 include_directories(3rdparty/libco)
 
 set(LIB_SOURCES
-        src/intern.h
-        src/collision.cpp
-        src/cutscene.cpp
-        src/file.cpp
-        src/fs.cpp
-        src/game.cpp
-        src/graphics.cpp
-        src/menu.cpp
-        src/mixer.cpp
-        src/mod_player.cpp
-        src/piege.cpp
-        src/resource.cpp
-        src/resource_aba.cpp
-        src/screenshot.cpp
-        src/seq_player.cpp
-        src/sfx_player.cpp
-        src/staticres.cpp
-        src/unpack.cpp
-        src/util.cpp
-        src/video.cpp)
+    src/intern.h
+    src/collision.cpp
+    src/cutscene.cpp
+    src/file.cpp
+    src/fs.cpp
+    src/game.cpp
+    src/graphics.cpp
+    src/menu.cpp
+    src/mixer.cpp
+    src/mod_player.cpp
+    src/piege.cpp
+    src/resource.cpp
+    src/resource_aba.cpp
+    src/screenshot.cpp
+    src/seq_player.cpp
+    src/sfx_player.cpp
+    src/staticres.cpp
+    src/unpack.cpp
+    src/util.cpp
+    src/video.cpp)
 
 add_library(reminiscence ${LIB_SOURCES})
 
@@ -71,7 +72,7 @@ ENDIF ()
 
 if (BUILD_EXE)
     set(EXE_SOURCES
-            src/sdlmain.cpp)
+        src/sdlmain.cpp)
 
     find_package(SDL2 REQUIRED)
     include_directories(${SDL2_INCLUDE_DIR})
@@ -79,5 +80,13 @@ if (BUILD_EXE)
     add_executable(reminiscence-sdl ${EXE_SOURCES})
 
     target_link_libraries(reminiscence-sdl reminiscence modplug libco ${SDL2_LIBRARY})
+endif ()
+
+if (BUILD_CORE)
+    set(CORE_SOURCES
+        src/libretro.cpp)
+
+    add_library(reminiscencecore SHARED ${CORE_SOURCES})
+    target_link_libraries(reminiscencecore reminiscence modplug libco)
 endif ()
 

@@ -14,11 +14,11 @@ struct Game;
 
 struct Video {
 	enum {
-		GAMESCREEN_W = 256,
-		GAMESCREEN_H = 224,
-		LAYER_SIZE   = GAMESCREEN_W * GAMESCREEN_H,
-		CHAR_W       = 8,
-		CHAR_H       = 8
+		GAMESCREEN_W    = 256,
+		GAMESCREEN_H    = 224,
+		GAMESCREEN_SIZE = GAMESCREEN_W * GAMESCREEN_H,
+		CHAR_W          = 8,
+		CHAR_H          = 8
 	};
 
 	static const uint8_t _conradPal1[];
@@ -27,8 +27,8 @@ struct Video {
 	static const uint8_t _palSlot0xF[];
 	static const uint8_t _font8Jp[];
 
-	Resource   *_res;
-	Game *_game;
+	Resource *_res;
+	Game     *_game;
 
 	uint8_t *_frontLayer; // drawing layer
 	uint8_t *_backLayer;  // background layer; used to clear screen between frames

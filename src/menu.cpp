@@ -99,8 +99,8 @@ void Menu::handleInfoScreen() {
 			_game->_pi.escape = false;
 			break;
 		}
-		if (_game->_pi.enter) {
-			_game->_pi.enter = false;
+		if (_game->_pi.use) {
+			_game->_pi.use = false;
 			break;
 		}
 	} while (!_game->_pi.quit);
@@ -146,8 +146,8 @@ void Menu::handleSkillScreen() {
 			_game->_pi.escape = false;
 			break;
 		}
-		if (_game->_pi.enter) {
-			_game->_pi.enter = false;
+		if (_game->_pi.use) {
+			_game->_pi.use = false;
 			_skill = skill_level;
 			return;
 		}
@@ -189,8 +189,8 @@ bool Menu::handlePasswordScreen() {
 				}
 			}
 		}
-		if (_game->_pi.backspace) {
-			_game->_pi.backspace = false;
+		if (_game->_pi.inventory_skip) {
+			_game->_pi.inventory_skip = false;
 			if (len > 0) {
 				--len;
 			}
@@ -199,8 +199,8 @@ bool Menu::handlePasswordScreen() {
 			_game->_pi.escape = false;
 			break;
 		}
-		if (_game->_pi.enter) {
-			_game->_pi.enter = false;
+		if (_game->_pi.use) {
+			_game->_pi.use = false;
 			password[len] = '\0';
 			for (int level = 0; level < 8; ++level) {
 				for (int skill = 0; skill < 3; ++skill) {
@@ -281,8 +281,8 @@ bool Menu::handleLevelScreen() {
 			_game->_pi.escape = false;
 			break;
 		}
-		if (_game->_pi.enter) {
-			_game->_pi.enter = false;
+		if (_game->_pi.use) {
+			_game->_pi.use = false;
 			_skill = currentSkill;
 			_level = currentLevel;
 			return true;
@@ -372,8 +372,8 @@ void Menu::handleTitleScreen() {
 				currentEntry = 0;
 			}
 		}
-		if (_game->_pi.enter) {
-			_game->_pi.enter = false;
+		if (_game->_pi.use) {
+			_game->_pi.use = false;
 			selectedItem = currentEntry;
 		}
 

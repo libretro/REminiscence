@@ -13,10 +13,10 @@
 Video::Video(Resource *res, Game *game)
 	: _res(res), _game(game) {
 	_frameBuffer          = (uint32_t *) calloc(1, Video::GAMESCREEN_W * Video::GAMESCREEN_H * sizeof(uint32_t));
-	_frontLayer           = (uint8_t *) calloc(1, Video::LAYER_SIZE);
-	_backLayer            = (uint8_t *) calloc(1, Video::LAYER_SIZE);
-	_tempLayer            = (uint8_t *) calloc(1, Video::LAYER_SIZE);
-	_tempLayer2           = (uint8_t *) calloc(1, Video::LAYER_SIZE);
+	_frontLayer           = (uint8_t *) calloc(1, Video::GAMESCREEN_SIZE);
+	_backLayer            = (uint8_t *) calloc(1, Video::GAMESCREEN_SIZE);
+	_tempLayer            = (uint8_t *) calloc(1, Video::GAMESCREEN_SIZE);
+	_tempLayer2           = (uint8_t *) calloc(1, Video::GAMESCREEN_SIZE);
 	_shakeOffset          = 0;
 	_charFrontColor       = 0;
 	_charTransparentColor = 0;
@@ -166,7 +166,7 @@ void Video::PC_decodeMap(int level, int room) {
 			}
 		}
 	}
-	memcpy(_backLayer, _frontLayer, Video::LAYER_SIZE);
+	memcpy(_backLayer, _frontLayer, Video::GAMESCREEN_SIZE);
 }
 
 void Video::PC_setLevelPalettes() {
@@ -417,7 +417,7 @@ void Video::AMIGA_decodeLev(int level, int room) {
 			}
 		}
 	}
-	memset(_frontLayer, 0, Video::LAYER_SIZE);
+	memset(_frontLayer, 0, Video::GAMESCREEN_SIZE);
 	if (tmp[1] != 0) {
 		assert(_res->_sgd);
 		decodeSgd(_frontLayer, tmp + offset10, _res->_sgd);
@@ -425,7 +425,7 @@ void Video::AMIGA_decodeLev(int level, int room) {
 	}
 	decodeLevHelper(_frontLayer, tmp, offset10, offset12, buf, tmp[1] != 0);
 	free(buf);
-	memcpy(_backLayer, _frontLayer, Video::LAYER_SIZE);
+	memcpy(_backLayer, _frontLayer, Video::GAMESCREEN_SIZE);
 	_mapPalSlot1 = READ_BE_UINT16(tmp + 2);
 	_mapPalSlot2 = READ_BE_UINT16(tmp + 4);
 	_mapPalSlot3 = READ_BE_UINT16(tmp + 6);

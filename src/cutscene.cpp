@@ -157,9 +157,9 @@ void Cutscene::drawText(int16_t x, int16_t y, const uint8_t *p, uint16_t color, 
 
 void Cutscene::swapLayers() {
 	if (_clearScreen == 0) {
-		memcpy(_page1, _pageC, Video::LAYER_SIZE);
+		memcpy(_page1, _pageC, Video::GAMESCREEN_SIZE);
 	} else {
-		memset(_page1, 0xC0, Video::LAYER_SIZE);
+		memset(_page1, 0xC0, Video::GAMESCREEN_SIZE);
 	}
 }
 
@@ -232,7 +232,7 @@ void Cutscene::op_waitForSync() {
 			if (_textBuf == _textCurBuf) {
 				_creditsTextCounter = 20;
 			}
-			memcpy(_page1, _page0, Video::LAYER_SIZE);
+			memcpy(_page1, _page0, Video::GAMESCREEN_SIZE);
 			drawCreditsText();
 			setPalette();
 		} while (--n);
@@ -324,7 +324,7 @@ void Cutscene::op_drawShape() {
 		drawShape(primitiveVertices, x + dx, y + dy);
 	}
 	if (_clearScreen != 0) {
-		memcpy(_pageC, _page1, Video::LAYER_SIZE);
+		memcpy(_pageC, _page1, Video::GAMESCREEN_SIZE);
 	}
 }
 
@@ -792,7 +792,7 @@ void Cutscene::op_drawCreditsText() {
 	if (_textCurBuf == _textBuf) {
 		++_creditsTextCounter;
 	}
-	memcpy(_page1, _page0, Video::LAYER_SIZE);
+	memcpy(_page1, _page0, Video::GAMESCREEN_SIZE);
 	_frameDelay = 10;
 	setPalette();
 }
@@ -845,7 +845,7 @@ void Cutscene::op_handleKeys() {
 			b = (_game->_pi.dirMask & PlayerInput::DIR_RIGHT) != 0;
 			break;
 		case 0x80:
-			b = _game->_pi.space || _game->_pi.enter || _game->_pi.shift;
+			b = _game->_pi.weapon || _game->_pi.use || _game->_pi.action;
 			break;
 		}
 		if (b) {
@@ -854,9 +854,9 @@ void Cutscene::op_handleKeys() {
 		_cmdPtr += 2;
 	}
 	_game->_pi.dirMask = 0;
-	_game->_pi.enter = false;
-	_game->_pi.space = false;
-	_game->_pi.shift = false;
+	_game->_pi.use = false;
+	_game->_pi.weapon = false;
+	_game->_pi.action = false;
 	int16_t n = fetchNextCmdWord();
 	if (n < 0) {
 		n = -n - 1;
@@ -919,8 +919,8 @@ void Cutscene::mainLoop(uint16_t offset) {
 		}
 		(this->*_opcodeTable[op])();
 		_game->processEvents();
-		if (_game->_pi.backspace) {
-			_game->_pi.backspace = false;
+		if (_game->_pi.inventory_skip) {
+			_game->_pi.inventory_skip = false;
 			_interrupted = true;
 		}
 	}
@@ -939,9 +939,9 @@ void Cutscene::prepare() {
 	_page1 = _vid->_tempLayer;
 	_pageC = _vid->_tempLayer2;
 	_game->_pi.dirMask = 0;
-	_game->_pi.enter = false;
-	_game->_pi.space = false;
-	_game->_pi.shift = false;
+	_game->_pi.use = false;
+	_game->_pi.weapon = false;
+	_game->_pi.action = false;
 	_interrupted = false;
 	_stop = false;
 	_gfx.setClippingRect(8, 50, 240, 128);
@@ -987,7 +987,7 @@ void Cutscene::playText(const char *str) {
 		}
 	}
 	const int y = (128 - lines * 8) / 2;
-	memset(_page1, 0xC0, Video::LAYER_SIZE);
+	memset(_page1, 0xC0, Video::GAMESCREEN_SIZE);
 	drawText(0, y, (const uint8_t *)str, 0xC1, _page1, 1);
 	_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
 	_game->setFrameReady();
@@ -995,8 +995,8 @@ void Cutscene::playText(const char *str) {
 
 	while (!_game->_pi.quit) {
 		_game->processEvents();
-		if (_game->_pi.backspace) {
-			_game->_pi.backspace = false;
+		if (_game->_pi.inventory_skip) {
+			_game->_pi.inventory_skip = false;
 			break;
 		}
 		_game->sleep(TIMER_SLICE);
