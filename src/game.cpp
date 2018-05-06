@@ -20,7 +20,7 @@ Game *Game::instance;
 Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, this, &_vid), _menu(&_res, this, &_vid),
 	  _mix(fs, this), _res(fs, lang), _vid(&_res, this), _seq(&_vid, this, &_mix),
-	  _fs(fs), _savePath(savePath), _sleep(0) {
+	  _fs(fs), _savePath(savePath), _sleep(0), _runningGame(false) {
 	_stateSlot = 1;
 	_inp_demPos = 0;
 	_skillLevel = _menu._skill = 1;
@@ -77,7 +77,7 @@ void Game::run() {
 	_res.load_FIB("GLOBAL");
 
 	while (!_pi.quit) {
-		if (_res._isDemo) {
+		if (true || _res._isDemo) {
 			// do not present title screen and menus
 		} else {
 			_mix.playMusic(1);
@@ -122,6 +122,7 @@ void Game::run() {
 			resetGameState();
 			_endLoop = false;
 			_frameTimestamp = getTimeStamp();
+			_runningGame = true;
 			while (!_pi.quit && !_endLoop) {
 				mainLoop();
 				if (_demoBin != -1 && _inp_demPos >= _res._demLen) {
@@ -1436,39 +1437,6 @@ bool Game::saveGameState(uint8_t slot) {
 	return success;
 }
 
-bool Game::loadGameState(uint8_t slot) {
-	bool success = false;
-	char stateFile[20];
-	makeGameStateName(slot, stateFile);
-	File f;
-	if (!f.open(stateFile, "zrb", _savePath)) {
-		warning("Unable to open state file '%s'", stateFile);
-	} else {
-		uint32_t id = f.readUint32BE();
-		if (id != TAG_FBSV) {
-			warning("Bad save state format");
-		} else {
-			uint16_t ver = f.readUint16BE();
-			if (ver != 2) {
-				warning("Invalid save state version");
-			} else {
-				// header
-				char buf[32];
-				f.read(buf, sizeof(buf));
-				// contents
-				loadState(&f);
-				if (f.ioErr()) {
-					warning("I/O error when loading game state");
-				} else {
-					debug(DBG_INFO, "Loaded state from slot %d", slot);
-					success = true;
-				}
-			}
-		}
-	}
-	return success;
-}
-
 void Game::saveState(File *f) {
 	f->writeByte(_skillLevel);
 	f->writeUint32BE(_score);
@@ -1525,6 +1493,39 @@ void Game::saveState(File *f) {
 		f->writeByte(cs2->data_size);
 		f->write(cs2->data_buf, 0x10);
 	}
+}
+
+bool Game::loadGameState(uint8_t slot) {
+	bool success = false;
+	char stateFile[20];
+	makeGameStateName(slot, stateFile);
+	File f;
+	if (!f.open(stateFile, "zrb", _savePath)) {
+		warning("Unable to open state file '%s'", stateFile);
+	} else {
+		uint32_t id = f.readUint32BE();
+		if (id != TAG_FBSV) {
+			warning("Bad save state format");
+		} else {
+			uint16_t ver = f.readUint16BE();
+			if (ver != 2) {
+				warning("Invalid save state version");
+			} else {
+				// header
+				char buf[32];
+				f.read(buf, sizeof(buf));
+				// contents
+				loadState(&f);
+				if (f.ioErr()) {
+					warning("I/O error when loading game state");
+				} else {
+					debug(DBG_INFO, "Loaded state from slot %d", slot);
+					success = true;
+				}
+			}
+		}
+	}
+	return success;
 }
 
 void Game::loadState(File *f) {

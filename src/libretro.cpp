@@ -75,15 +75,31 @@ void retro_set_controller_port_device(unsigned port, unsigned device) {
 }
 
 size_t retro_serialize_size(void) {
-	return 0;
+	return 128 * 1024; // arbitrary max size?
 }
 
 bool retro_serialize(void *data, size_t size) {
-	return false;
+	if (!game->_runningGame) {
+		return false;
+	}
+
+	File f;
+	f.open(new MemFile(static_cast<uint8_t *>(data), static_cast<uint32_t>(size)));
+	game->saveState(&f);
+
+	return !f.ioErr();
 }
 
 bool retro_unserialize(const void *data, size_t size) {
-	return false;
+	if (!game->_runningGame) {
+		return false;
+	}
+
+	File f;
+	f.open(new ReadOnlyMemFile(static_cast<const uint8_t *>(data), static_cast<uint32_t>(size)));
+	game->loadState(&f);
+
+	return !f.ioErr();
 }
 
 void retro_cheat_reset(void) {}
@@ -153,7 +169,6 @@ bool retro_load_game(const struct retro_game_info *info) {
 		{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Draw / Holster"},
 		{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Use"},
 		{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Inventory / Skip"},
-		{0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Popup Menu"},
 
 		{0},
 	};
@@ -211,6 +226,8 @@ void *retro_get_memory_data(unsigned id) {
 	switch (id) {
 	case RETRO_MEMORY_SYSTEM_RAM:
 		return NULL;
+	case RETRO_MEMORY_VIDEO_RAM:
+		return game->getFrameBuffer();
 	default:
 		return NULL;
 	}
@@ -220,6 +237,8 @@ size_t retro_get_memory_size(unsigned id) {
 	switch (id) {
 	case RETRO_MEMORY_SYSTEM_RAM:
 		return 128;
+	case RETRO_MEMORY_VIDEO_RAM:
+		return Video::GAMESCREEN_SIZE * sizeof(uint32_t);
 	default:
 		return 0;
 	}
@@ -258,7 +277,7 @@ static void update_input() {
 
 	struct dir_map_t {
 		unsigned int retro;
-		int player;
+		int          player;
 	} joy_map[] = {
 		{RETRO_DEVICE_ID_JOYPAD_UP,    PlayerInput::DIR_UP},
 		{RETRO_DEVICE_ID_JOYPAD_RIGHT, PlayerInput::DIR_RIGHT},
@@ -284,7 +303,6 @@ static void update_input() {
 	update_button(RETRO_DEVICE_ID_JOYPAD_B, pi.weapon);
 	update_button(RETRO_DEVICE_ID_JOYPAD_A, pi.use, &lastInput.use);
 	update_button(RETRO_DEVICE_ID_JOYPAD_Y, pi.inventory_skip, &lastInput.inventory_skip);
-	update_button(RETRO_DEVICE_ID_JOYPAD_START, pi.escape);
 }
 
 void retro_run(void) {
@@ -299,19 +317,12 @@ void retro_run(void) {
 	game->tick();
 
 	//VIDEO
-	// swizzle elements
-	static uint32_t frameBuffer[Video::GAMESCREEN_SIZE];
-	uint32_t        *src     = game->getFrameBuffer();
-	for (int        i        = 0; i < Video::GAMESCREEN_SIZE; i++) {
-		frameBuffer[i] = src[i] << 24u | src[i] >> 8u;
-	}
-	video_cb(frameBuffer, Video::GAMESCREEN_W, Video::GAMESCREEN_H, Video::GAMESCREEN_W * sizeof(uint32_t));
+	video_cb(game->getFrameBuffer(), Video::GAMESCREEN_W, Video::GAMESCREEN_H, Video::GAMESCREEN_W * sizeof(uint32_t));
 
 	//AUDIO
 	static int16_t sampleBuffer[2048];
 	memset(sampleBuffer, 0, samplesPerFrame * sizeof(int16_t));
 	game->processFragment(sampleBuffer, samplesPerFrame);
-
 
 	static int16_t stereoBuffer[2048];
 	int16_t        *p        = stereoBuffer;

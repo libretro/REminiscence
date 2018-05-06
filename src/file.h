@@ -9,7 +9,21 @@
 
 #include "intern.h"
 
-struct File_impl;
+struct File_impl {
+	bool _ioErr;
+
+	File_impl() : _ioErr(false) {}
+
+	virtual ~File_impl() {}
+
+	virtual bool open(const char *path, const char *mode) = 0;
+	virtual void close() = 0;
+	virtual uint32_t size() = 0;
+	virtual void seek(int32_t off) = 0;
+	virtual uint32_t read(void *ptr, uint32_t len) = 0;
+	virtual uint32_t write(const void *ptr, uint32_t len) = 0;
+};
+
 struct FileSystem;
 
 struct File {
@@ -20,7 +34,9 @@ struct File {
 
 	bool open(const char *filename, const char *mode, FileSystem *fs);
 	bool open(const char *filename, const char *mode, const char *directory);
+	bool open(File_impl *impl);
 	void close();
+	void cleanup();
 	bool ioErr() const;
 	uint32_t size();
 	void seek(int32_t off);
@@ -34,6 +50,49 @@ struct File {
 	void writeByte(uint8_t b);
 	void writeUint16BE(uint16_t n);
 	void writeUint32BE(uint32_t n);
+};
+
+struct MemFile : File_impl {
+	bool     _canResize;
+	uint8_t  *_mem;
+	uint32_t _pos;
+	uint32_t _size;
+
+	MemFile(uint8_t *mem, uint32_t size);
+
+	MemFile();
+
+	bool open(const char *path, const char *mode) override;
+
+	void close() override {}
+
+	uint32_t size() override { return _size; }
+
+	void seek(int32_t off) override;
+
+	uint32_t read(void *ptr, uint32_t len) override;
+
+	uint32_t write(const void *ptr, uint32_t len) override;
+};
+
+struct ReadOnlyMemFile : File_impl {
+	const uint8_t *_mem;
+	uint32_t      _pos;
+	uint32_t      _size;
+
+	ReadOnlyMemFile(const uint8_t *mem, uint32_t size);
+
+	bool open(const char *path, const char *mode) override;
+
+	void close() override {}
+
+	uint32_t size() override { return _size; }
+
+	void seek(int32_t off) override;
+
+	uint32_t read(void *ptr, uint32_t len) override;
+
+	uint32_t write(const void *ptr, uint32_t len) override;
 };
 
 #endif // FILE_H__

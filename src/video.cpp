@@ -604,18 +604,18 @@ void Video::setPalette(const uint8_t *pal, int n) {
 		uint8_t r = pal[i * 3 + 0];
 		uint8_t g = pal[i * 3 + 1];
 		uint8_t b = pal[i * 3 + 2];
-		_rgbPalette[i] = r << 24u | g << 16u | b << 8u;
+		_rgbPalette[i] = r << 16u | g << 8u | b << 0u;
 	}
 }
 
 void Video::setPaletteEntry(int i, const Color *c) {
-	_rgbPalette[i] = c->r << 24u | c->g << 16u | c->b << 8u;
+	_rgbPalette[i] = c->r << 16u | c->g << 8u | c->b << 0u;
 }
 
 void Video::getPaletteEntry(int i, Color *c) {
-	c->r = static_cast<uint8_t>(_rgbPalette[i] >> 24u);
-	c->g = static_cast<uint8_t>(_rgbPalette[i] >> 16u);
-	c->b = static_cast<uint8_t>(_rgbPalette[i] >> 8u);
+	c->r = static_cast<uint8_t>(_rgbPalette[i] >> 16u);
+	c->g = static_cast<uint8_t>(_rgbPalette[i] >> 8u);
+	c->b = static_cast<uint8_t>(_rgbPalette[i] >> 0u);
 }
 
 void Video::copyRect(int x, int y, int w, int h, const uint8_t *buf, int pitch) {

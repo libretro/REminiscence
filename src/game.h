@@ -126,6 +126,7 @@ struct Game {
 	uint32_t    _sleep;
 	uint32_t    _lastTimestamp;
 	bool        _frameReady;
+	bool        _runningGame;
 
 	Game(FileSystem *, const char *savePath, int level, Language lang);
 	~Game();

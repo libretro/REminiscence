@@ -483,7 +483,7 @@ int main(int argc, char *argv[]) {
 	window = SDL_CreateWindow(g_caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, flags);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 	SDL_RenderSetLogicalSize(renderer, windowW, windowH);
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STREAMING, Video::GAMESCREEN_W, Video::GAMESCREEN_H);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, Video::GAMESCREEN_W, Video::GAMESCREEN_H);
 	SDL_AudioSpec desired, spec;
 	memset(&desired, 0, sizeof(desired));
 	memset(&spec, 0, sizeof(spec));
