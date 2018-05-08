@@ -1,0 +1,33 @@
+DEPS_DIR     	   := $(CORE_DIR)/3rdparty
+
+INCFLAGS := -I$(CORE_DIR)/3rdparty \
+				-I$(CORE_DIR)/3rdparty/libco \
+				-I$(CORE_DIR)/src
+
+ifneq (,$(findstring msvc2003,$(platform)))
+INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
+endif
+
+SOURCES_CXX := \
+					$(CORE_DIR)/src/collision.cpp \
+					$(CORE_DIR)/src/cutscene.cpp \
+					$(CORE_DIR)/src/file.cpp \
+					$(CORE_DIR)/src/fs.cpp \
+					$(CORE_DIR)/src/game.cpp \
+					$(CORE_DIR)/src/graphics.cpp \
+					$(CORE_DIR)/src/libretro.cpp \
+					$(CORE_DIR)/src/menu.cpp \
+					$(CORE_DIR)/src/mixer.cpp \
+					$(CORE_DIR)/src/mod_player.cpp \
+					$(CORE_DIR)/src/piege.cpp \
+					$(CORE_DIR)/src/resource.cpp \
+					$(CORE_DIR)/src/resource_aba.cpp \
+					$(CORE_DIR)/src/screenshot.cpp \
+					$(CORE_DIR)/src/seq_player.cpp \
+					$(CORE_DIR)/src/sfx_player.cpp \
+					$(CORE_DIR)/src/staticres.cpp \
+					$(CORE_DIR)/src/unpack.cpp \
+					$(CORE_DIR)/src/util.cpp \
+					$(CORE_DIR)/src/video.cpp
+
+SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c
