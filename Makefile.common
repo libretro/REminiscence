@@ -22,7 +22,6 @@ SOURCES_CXX := \
 					$(CORE_DIR)/src/piege.cpp \
 					$(CORE_DIR)/src/resource.cpp \
 					$(CORE_DIR)/src/resource_aba.cpp \
-					$(CORE_DIR)/src/screenshot.cpp \
 					$(CORE_DIR)/src/seq_player.cpp \
 					$(CORE_DIR)/src/sfx_player.cpp \
 					$(CORE_DIR)/src/staticres.cpp \
