@@ -80,7 +80,7 @@ bool retro_serialize(void *data, size_t size)
 {
    File f;
 
-   if (!game->_runningGame)
+   if (!game->isStateMainLoop())
       return false;
 
    f.open(new MemFile(static_cast<uint8_t *>(data),
@@ -93,7 +93,7 @@ bool retro_serialize(void *data, size_t size)
 bool retro_unserialize(const void *data, size_t size)
 {
    File f;
-	if (!game->_runningGame)
+	if (!game->isStateMainLoop())
 		return false;
 
 	f.open(new ReadOnlyMemFile(static_cast<const uint8_t *>(data),
@@ -268,7 +268,7 @@ size_t retro_get_memory_size(unsigned id)
    return 0;
 }
 
-void retro_init(void) 
+void retro_init(void)
 {
 	struct retro_log_callback log;
 	unsigned                  level = 2;
@@ -344,7 +344,7 @@ void retro_run(void)
    static int16_t sampleBuffer[2048];
    static int16_t stereoBuffer[2048];
    /* Get the number of samples in a frame */
-   uint16_t samplesPerFrame = game->getOutputSampleRate() 
+   uint16_t samplesPerFrame = game->getOutputSampleRate()
       / game->getFrameRate();
 
    //INPUT

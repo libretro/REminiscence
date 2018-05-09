@@ -35,7 +35,6 @@ void Video::updateScreen() {
 	debug(DBG_VIDEO, "Video::updateScreen()");
 	// TODO(sgc): handle _shakeOffset when copying
 	copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _frontLayer, 256);
-	_game->setFrameReady();
 	_game->yield();
 	if (_shakeOffset != 0) {
 		_shakeOffset = 0;

@@ -50,7 +50,6 @@ struct PlayerInput {
 	bool    quit;
 };
 
-
 struct Game {
 	typedef int (Game::*pge_OpcodeProc)(ObjectOpcodeArgs *args);
 	typedef int (Game::*pge_ZOrderCallback)(LivePGE *, LivePGE *, uint8_t, uint8_t);
@@ -63,6 +62,16 @@ struct Game {
 		CT_DOWN_ROOM  = 0x40,
 		CT_RIGHT_ROOM = 0x80,
 		CT_LEFT_ROOM  = 0xC0
+	};
+
+	enum {
+		STATE_INIT,
+		STATE_MAIN_MENU,
+		STATE_MAIN_LOOP,
+		STATE_CUT_SCENE,
+		STATE_CONTINUE,
+		STATE_INVENTORY,
+		STATE_FINAL_SCORE,
 	};
 
 	static Game *instance;
@@ -125,8 +134,7 @@ struct Game {
 	cothread_t  gameThread;
 	uint32_t    _sleep;
 	uint32_t    _lastTimestamp;
-	bool        _frameReady;
-	bool        _runningGame;
+	int         _state;
 
 	Game(FileSystem *, const char *savePath, int level, Language lang);
 	~Game();
@@ -140,14 +148,13 @@ struct Game {
 	void sleep(int ms);
 	void processEvents();
 
-	bool frameReady() { return _frameReady; };
-
-	void setFrameReady() { _frameReady = true; };
 	uint32_t getTimeStamp();
 
 	uint32_t getOutputSampleRate() { return 44100; };
 
 	uint32_t getFrameRate() { return 50; };
+
+	bool isStateMainLoop() { return _state == STATE_MAIN_LOOP; }
 
 	bool isRunning() { return running; };
 	void processFragment(int16_t *stream, int len);

@@ -11,17 +11,13 @@
 // IndependentMethod is a test case - here, we have 2 tests for this 1 test case
 TEST(IndependentMethod, ResetsToZero) {
 	FileSystem fs(DATA_PATH);
-	Game *g = new Game(&fs, "", 0, Language::LANG_EN);
+	Game       *g = new Game(&fs, "", 0, Language::LANG_EN);
 	g->init();
 
 	g->tick();
-	std::cerr << "back 1" << std::endl;
+	EXPECT_TRUE(g->isRunning());
+
 	g->_pi.quit = true;
 	g->tick();
-	std::cerr << "back 3" << std::endl;
 	EXPECT_FALSE(g->isRunning());
-
-	char dir[512];
-	snprintf(dir, sizeof(dir), "%s/tmp", getenv("HOME"));
-	saveTGA(dir, "screenshot.tga", (const uint8_t *) g->getFrameBuffer(), Video::GAMESCREEN_W, Video::GAMESCREEN_H);
 }

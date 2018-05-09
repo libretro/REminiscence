@@ -308,7 +308,6 @@ void SeqPlayer::play(File *f) {
 				} else {
 					_vid->copyRect(0, y0, kVideoWidth, kVideoHeight, _buf, 256);
 				}
-				_game->setFrameReady();
 				_game->yield();
 			}
 			const int diff = nextFrameTimeStamp - _game->getTimeStamp();

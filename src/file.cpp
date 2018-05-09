@@ -169,7 +169,7 @@ bool File::open(const char *filename, const char *mode, const char *directory) {
 
 bool File::open(File_impl *impl) {
 	cleanup();
-	_impl    = impl;
+	_impl = impl;
 	return true;
 }
 
@@ -252,11 +252,12 @@ void File::writeUint32BE(uint32_t n) {
 	writeUint16BE(n & 0xFFFF);
 }
 
-MemFile::MemFile(uint8_t *mem, uint32_t size) : _canResize(false), _mem(mem), _size(size), _pos(0) {
+MemFile::MemFile(uint8_t *mem, uint32_t size)
+	: _canResize(false), _mem(mem), _pos(0), _size(size) {
 
 }
 
-MemFile::MemFile() : _canResize(true), _pos(0), _size(0), _mem(NULL) {}
+MemFile::MemFile() : _canResize(true), _mem(NULL), _pos(0), _size(0) {}
 
 bool MemFile::open(const char *path, const char *mode) {
 	return true;
@@ -309,7 +310,8 @@ uint32_t MemFile::write(const void *ptr, uint32_t len) {
 	return to_write;
 }
 
-ReadOnlyMemFile::ReadOnlyMemFile(const uint8_t *mem, uint32_t size) : _mem(mem), _size(size), _pos(0) {
+ReadOnlyMemFile::ReadOnlyMemFile(const uint8_t *mem, uint32_t size)
+	: _mem(mem), _pos(0), _size(size) {
 
 }
 

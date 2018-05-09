@@ -58,7 +58,6 @@ void Cutscene::setPalette() {
 	updatePalette();
 	SWAP(_page0, _page1);
 	_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page0, 256);
-	_game->setFrameReady();
 	_game->yield();
 }
 
@@ -813,7 +812,6 @@ void Cutscene::op_drawStringAtPos() {
 			if (_id == 0x34 && (strId & 0xFFF) == 0x45) {
 				if ((_cmdPtr - _cmdPtrBak) == 0xA) {
 					_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
-					_game->setFrameReady();
 					_game->yield();
 				} else {
 					_game->sleep(15);
@@ -918,7 +916,6 @@ void Cutscene::mainLoop(uint16_t offset) {
 			error("Invalid cutscene opcode = 0x%02X", op);
 		}
 		(this->*_opcodeTable[op])();
-		_game->processEvents();
 		if (_game->_pi.inventory_skip) {
 			_game->_pi.inventory_skip = false;
 			_interrupted = true;
@@ -990,7 +987,6 @@ void Cutscene::playText(const char *str) {
 	memset(_page1, 0xC0, Video::GAMESCREEN_SIZE);
 	drawText(0, y, (const uint8_t *)str, 0xC1, _page1, 1);
 	_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
-	_game->setFrameReady();
 	_game->yield();
 
 	while (!_game->_pi.quit) {

@@ -62,17 +62,17 @@ struct MemFile : File_impl {
 
 	MemFile();
 
-	bool open(const char *path, const char *mode) override;
+	bool open(const char *path, const char *mode);
 
-	void close() override {}
+	void close() {}
 
-	uint32_t size() override { return _size; }
+	uint32_t size() { return _size; }
 
-	void seek(int32_t off) override;
+	void seek(int32_t off);
 
-	uint32_t read(void *ptr, uint32_t len) override;
+	uint32_t read(void *ptr, uint32_t len);
 
-	uint32_t write(const void *ptr, uint32_t len) override;
+	uint32_t write(const void *ptr, uint32_t len);
 };
 
 struct ReadOnlyMemFile : File_impl {
@@ -82,17 +82,17 @@ struct ReadOnlyMemFile : File_impl {
 
 	ReadOnlyMemFile(const uint8_t *mem, uint32_t size);
 
-	bool open(const char *path, const char *mode) override;
+	bool open(const char *path, const char *mode);
 
-	void close() override {}
+	void close() {}
 
-	uint32_t size() override { return _size; }
+	uint32_t size() { return _size; }
 
-	void seek(int32_t off) override;
+	void seek(int32_t off);
 
-	uint32_t read(void *ptr, uint32_t len) override;
+	uint32_t read(void *ptr, uint32_t len);
 
-	uint32_t write(const void *ptr, uint32_t len) override;
+	uint32_t write(const void *ptr, uint32_t len);
 };
 
 #endif // FILE_H__
