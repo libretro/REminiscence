@@ -30,7 +30,7 @@ Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 }
 
 Game::~Game() {
-	Game::instance = nullptr;
+	Game::instance = NULL;
 }
 
 void Game::init() {
@@ -820,11 +820,11 @@ void Game::prepareAnimsHelper(LivePGE *pge, int16_t dx, int16_t dy) {
 		const int16_t xpos = dx + pge->pos_x + 8;
 		const int16_t ypos = dy + pge->pos_y + 2;
 		if (pge->init_PGE->object_type == 11) {
-			_animBuffers.addState(3, xpos, ypos, dataPtr, pge);
+			_animBuffers.addState(3, xpos, ypos, dataPtr, pge, 0, 0);
 		} else if (pge->flags & 0x10) {
-			_animBuffers.addState(2, xpos, ypos, dataPtr, pge);
+			_animBuffers.addState(2, xpos, ypos, dataPtr, pge, 0, 0);
 		} else {
-			_animBuffers.addState(0, xpos, ypos, dataPtr, pge);
+			_animBuffers.addState(0, xpos, ypos, dataPtr, pge, 0, 0);
 		}
 	}
 }

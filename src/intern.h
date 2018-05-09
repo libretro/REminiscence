@@ -44,21 +44,19 @@ inline uint32_t READ_LE_UINT32(const void *ptr) {
 
 inline int8_t ADDC_S8(int a, int b) {
 	a += b;
-	if (a < -128) {
+	if (a < -128)
 		a = -128;
-	} else if (a > 127) {
+	else if (a > 127)
 		a = 127;
-	}
 	return a;
 }
 
 inline int16_t ADDC_S16(int a, int b) {
 	a += b;
-	if (a < -32768) {
+	if (a < -32768)
 		a = -32768;
-	} else if (a > 32767) {
+	else if (a > 32767)
 		a = 32767;
-	}
 	return a;
 }
 
@@ -202,8 +200,8 @@ struct AnimBuffers {
 	AnimBufferState *_states[4];
 	uint8_t         _curPos[4];
 
-	void addState(uint8_t stateNum, int16_t x, int16_t y, const uint8_t *dataPtr, LivePGE *pge, uint8_t w = 0,
-	              uint8_t h = 0);
+	void addState(uint8_t stateNum, int16_t x, int16_t y, const uint8_t *dataPtr, LivePGE *pge, uint8_t w,
+	              uint8_t h);
 };
 
 struct CollisionSlot {

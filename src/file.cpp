@@ -177,7 +177,7 @@ void File::cleanup() {
 	if (_impl) {
 		_impl->close();
 		delete _impl;
-		_impl = nullptr;
+		_impl = NULL;
 	}
 }
 
@@ -256,7 +256,7 @@ MemFile::MemFile(uint8_t *mem, uint32_t size) : _canResize(false), _mem(mem), _s
 
 }
 
-MemFile::MemFile() : _canResize(true), _pos(0), _size(0), _mem(nullptr) {}
+MemFile::MemFile() : _canResize(true), _pos(0), _size(0), _mem(NULL) {}
 
 bool MemFile::open(const char *path, const char *mode) {
 	return true;
