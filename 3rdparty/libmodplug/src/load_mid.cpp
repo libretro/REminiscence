@@ -29,7 +29,7 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#include <retro_miscellaneous.h>
+#include <retro_timers.h>
 
 #include "stdafx.h"
 #include "sndfile.h"
