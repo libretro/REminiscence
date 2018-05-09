@@ -28,7 +28,7 @@ struct ResourceAba {
 
 	void readEntries();
 	const ResourceAbaEntry *findEntry(const char *name) const;
-	uint8_t *loadEntry(const char *name, uint32_t *size = 0);
+	uint8_t *loadEntry(const char *name, uint32_t *size);
 };
 
 #endif // RESOURCE_ABA_H__

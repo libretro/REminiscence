@@ -214,7 +214,7 @@ void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
 			error("I/O error when reading '%s'", _entryName);
 		}
 	} else if (_aba) {
-		offData = _aba->loadEntry(_entryName);
+		offData = _aba->loadEntry(_entryName, 0);
 	}
 	if (offData) {
 		const uint8_t *p = offData;
@@ -268,7 +268,7 @@ void Resource::load_CINE() {
 				error("I/O error when reading '%s'", _entryName);
 			}
 		} else if (_aba) {
-			_cine_off = _aba->loadEntry(_entryName);
+			_cine_off = _aba->loadEntry(_entryName, 0);
 		}
 		if (!_cine_off) {
 			error("Cannot load '%s'", _entryName);
@@ -288,7 +288,7 @@ void Resource::load_CINE() {
 				error("I/O error when reading '%s'", _entryName);
 			}
 		} else if (_aba) {
-			_cine_txt = _aba->loadEntry(_entryName);
+			_cine_txt = _aba->loadEntry(_entryName, 0);
 		}
 		if (!_cine_txt) {
 			error("Cannot load '%s'", _entryName);

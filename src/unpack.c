@@ -4,6 +4,8 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#include <stdint.h>
+#include "intern_structs.h"
 #include "unpack.h"
 
 struct UnpackCtx {
@@ -14,7 +16,7 @@ struct UnpackCtx {
 	const uint8_t *src;
 };
 
-static int shiftBit(UnpackCtx *uc, int CF) {
+static int shiftBit(struct UnpackCtx *uc, int CF) {
 	int rCF = (uc->bits & 1);
 	uc->bits >>= 1;
 	if (CF) {
@@ -23,7 +25,7 @@ static int shiftBit(UnpackCtx *uc, int CF) {
 	return rCF;
 }
 
-static int nextBit(UnpackCtx *uc) {
+static int nextBit(struct UnpackCtx *uc) {
 	int CF = shiftBit(uc, 0);
 	if (uc->bits == 0) {
 		uc->bits = READ_BE_UINT32(uc->src); uc->src -= 4;
@@ -33,7 +35,7 @@ static int nextBit(UnpackCtx *uc) {
 	return CF;
 }
 
-static uint16_t getBits(UnpackCtx *uc, uint8_t num_bits) {
+static uint16_t getBits(struct UnpackCtx *uc, uint8_t num_bits) {
 	uint16_t c = 0;
 	while (num_bits--) {
 		c <<= 1;
@@ -44,7 +46,7 @@ static uint16_t getBits(UnpackCtx *uc, uint8_t num_bits) {
 	return c;
 }
 
-static void unpackHelper1(UnpackCtx *uc, uint8_t num_bits, uint8_t add_count) {
+static void unpackHelper1(struct UnpackCtx *uc, uint8_t num_bits, uint8_t add_count) {
 	uint16_t count = getBits(uc, num_bits) + add_count + 1;
 	uc->datasize -= count;
 	while (count--) {
@@ -53,7 +55,7 @@ static void unpackHelper1(UnpackCtx *uc, uint8_t num_bits, uint8_t add_count) {
 	}
 }
 
-static void unpackHelper2(UnpackCtx *uc, uint8_t num_bits) {
+static void unpackHelper2(struct UnpackCtx *uc, uint8_t num_bits) {
 	uint16_t i = getBits(uc, num_bits);
 	uint16_t count = uc->size + 1;
 	uc->datasize -= count;
@@ -64,7 +66,7 @@ static void unpackHelper2(UnpackCtx *uc, uint8_t num_bits) {
 }
 
 bool delphine_unpack(uint8_t *dst, const uint8_t *src, int len) {
-	UnpackCtx uc;
+	struct UnpackCtx uc;
 	uc.src = src + len - 4;
 	uc.datasize = READ_BE_UINT32(uc.src); uc.src -= 4;
 	uc.dst = dst + uc.datasize - 1;
