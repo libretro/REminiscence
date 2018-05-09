@@ -13,7 +13,11 @@ INCFLAGS += \
 				-I$(MODPLUG_DIR)/libmodplug
 endif
 
-FLAGS   += -DHAVE_SETENV -DHAVE_SINF
+FLAGS += -DHAVE_SINF
+
+ifneq ($(platform), win)
+FLAGS += -DHAVE_SETENV
+endif
 
 ifneq (,$(findstring msvc2003,$(platform)))
 INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc

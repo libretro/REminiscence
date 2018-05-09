@@ -11,19 +11,7 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32) || defined(__CYGWIN__)
-# if defined(MODPLUG_BUILD) && defined(DLL_EXPORT)	/* building libmodplug as a dll for windows */
-#   define MODPLUG_EXPORT __declspec(dllexport)
-# elif defined(MODPLUG_BUILD) || defined(MODPLUG_STATIC)	/* building or using static libmodplug for windows */
-#   define MODPLUG_EXPORT
-# else
-#   define MODPLUG_EXPORT __declspec(dllimport)			/* using libmodplug dll for windows */
-# endif
-#elif defined(MODPLUG_BUILD) && defined(SYM_VISIBILITY)
-#   define MODPLUG_EXPORT __attribute__((visibility("default")))
-#else
 #define MODPLUG_EXPORT
-#endif
 
 struct _ModPlugFile;
 typedef struct _ModPlugFile ModPlugFile;
