@@ -18,8 +18,6 @@
 
 static const int kAudioHz = 44100;
 
-const char *g_caption = "REminiscence";
-
 FileSystem  *fs;
 Game        *game;
 PlayerInput lastInput;

@@ -33,6 +33,5 @@ struct AnimBuffers {
 };
 
 extern Options    g_options;
-extern const char *g_caption;
 
 #endif // INTERN_H__

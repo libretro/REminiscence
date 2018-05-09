@@ -585,13 +585,17 @@ const char *Video::drawString(const char *str, int16_t x, int16_t y, uint8_t col
 }
 
 Color Video::AMIGA_convertColor(const uint16_t color, bool bgr) { // 4bits to 8bits
+   Color c;
 	int r = (color & 0xF00) >> 8;
 	int g = (color & 0xF0) >> 4;
 	int b = color & 0xF;
-	if (bgr) {
-		SWAP(r, b);
+	if (bgr)
+   {
+      /* Swap R and B channels */
+      int tmp = r;
+      r       = b;
+      b       = tmp;
 	}
-	Color c;
 	c.r = (r << 4) | r;
 	c.g = (g << 4) | g;
 	c.b = (b << 4) | b;
