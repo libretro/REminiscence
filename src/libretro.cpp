@@ -303,12 +303,15 @@ static void update_button(unsigned int id, bool &button, bool *old_val)
    }
 }
 
+struct dir_map_t {
+   unsigned int retro;
+   int          player;
+};
+
 static void update_input(void)
 {
-   struct dir_map_t {
-      unsigned int retro;
-      int          player;
-   } joy_map[] = {
+   unsigned i;
+   struct dir_map_t joy_map[] = {
       {RETRO_DEVICE_ID_JOYPAD_UP,    PlayerInput::DIR_UP},
       {RETRO_DEVICE_ID_JOYPAD_RIGHT, PlayerInput::DIR_RIGHT},
       {RETRO_DEVICE_ID_JOYPAD_DOWN,  PlayerInput::DIR_DOWN},
@@ -323,10 +326,11 @@ static void update_input(void)
    PlayerInput &pi = game->_pi;
 
    pi.dirMask = 0;
-   for (auto m: joy_map)
+
+   for (i = 0; i < ARRAYSIZE(joy_map); i++)
    {
-      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, m.retro))
-         pi.dirMask |= m.player;
+      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy_map[i].retro))
+         pi.dirMask |= joy_map[i].player;
    }
 
    update_button(RETRO_DEVICE_ID_JOYPAD_X, pi.action, NULL);
