@@ -74,11 +74,11 @@ struct Video {
 	void drawSpriteSub4(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
 	void drawSpriteSub5(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
 	void drawSpriteSub6(const uint8_t *src, uint8_t *dst, int pitch, int h, int w, uint8_t colMask);
-	void PC_drawChar(uint8_t c, int16_t y, int16_t x, bool forceDefaultFont = false);
+	void PC_drawChar(uint8_t c, int16_t y, int16_t x, bool forceDefaultFont);
 	void PC_drawStringChar(uint8_t *dst, int pitch, const uint8_t *src, uint8_t color, uint8_t chr);
 
 	const char *drawString(const char *str, int16_t x, int16_t y, uint8_t col);
-	static Color AMIGA_convertColor(const uint16_t color, bool bgr = false);
+	static Color AMIGA_convertColor(const uint16_t color, bool bgr);
 };
 
 #endif // VIDEO_H__

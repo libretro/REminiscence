@@ -78,7 +78,7 @@ void Video::setPaletteSlotLE(int palSlot, const uint8_t *palData) {
 	for (int i = 0; i < 16; ++i) {
 		uint16_t color = READ_LE_UINT16(palData);
 		palData += 2;
-		Color c = AMIGA_convertColor(color);
+		Color c = AMIGA_convertColor(color, false);
 		setPaletteEntry(palSlot * 0x10 + i, &c);
 	}
 }

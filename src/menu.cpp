@@ -169,9 +169,9 @@ bool Menu::handlePasswordScreen() {
 		drawString2(_res->getMenuString(LocaleData::LI_17_ENTER_PASSWORD2), 17, 3);
 
 		for (int i = 0; i < len; ++i) {
-			_vid->PC_drawChar((uint8_t) password[i], 21, i + 15);
+			_vid->PC_drawChar((uint8_t) password[i], 21, i + 15, false);
 		}
-		_vid->PC_drawChar(0x20, 21, len + 15);
+		_vid->PC_drawChar(0x20, 21, len + 15, false);
 
 		_vid->updateScreen();
 		_game->sleep(EVENTS_DELAY);

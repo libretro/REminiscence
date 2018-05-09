@@ -46,7 +46,7 @@ void Cutscene::updatePalette() {
 		const uint8_t *p = _palBuf;
 		for (int i = 0; i < 32; ++i) {
 			const uint16_t color = READ_BE_UINT16(p); p += 2;
-			Color c = Video::AMIGA_convertColor(color);
+			Color c = Video::AMIGA_convertColor(color, false);
 			_vid->setPaletteEntry(0xC0 + i, &c);
 		}
 		_newPal = false;
