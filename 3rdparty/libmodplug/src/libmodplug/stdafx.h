@@ -9,17 +9,7 @@
 #ifndef _STDAFX_H_
 #define _STDAFX_H_
 
-/* Autoconf detection of stdint/inttypes */
-#if defined(HAVE_CONFIG_H) && !defined(CONFIG_H_INCLUDED)
-# include "config.h"
-# define CONFIG_H_INCLUDED 1
-#endif
-#ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 
 /* disable AGC and FILESAVE for all targets for uniformity. */
 #define NO_AGC
