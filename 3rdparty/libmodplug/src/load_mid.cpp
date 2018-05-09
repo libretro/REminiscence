@@ -29,9 +29,7 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#ifndef _WIN32
-#include <unistd.h> // for sleep
-#endif
+#include <retro_miscellaneous.h>
 
 #include "stdafx.h"
 #include "sndfile.h"
@@ -1170,7 +1168,7 @@ BOOL CSoundFile::ReadMID(const BYTE *lpStream, DWORD dwMemLength)
 	BYTE midibyte[2];
 	long metalen, delta;
 	BYTE *p;
-	while( avoid_reentry ) sleep(1);
+	while( avoid_reentry ) retro_sleep(1);
 	avoid_reentry = 1;
 	if( !TestMID(lpStream, dwMemLength) ) {
 		avoid_reentry = 0;

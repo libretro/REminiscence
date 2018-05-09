@@ -42,7 +42,6 @@
 
 #define srandom(_seed)  srand(_seed)
 #define random()        rand()
-#define sleep(_ms)      Sleep(_ms)
 
 inline void ProcessPlugins(int n) {}
 

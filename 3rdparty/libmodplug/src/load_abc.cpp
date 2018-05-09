@@ -30,9 +30,7 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#ifndef _WIN32
-#include <unistd.h> // for sleep
-#endif // _WIN32
+#include <retro_timers.h>
 
 #include "stdafx.h"
 #include "sndfile.h"
@@ -3597,7 +3595,7 @@ BOOL CSoundFile::ReadABC(const uint8_t *lpStream, DWORD dwMemLength)
 	mm.mm = (char *)lpStream;
 	mm.sz = dwMemLength;
 	mm.pos = 0;
-	while( avoid_reentry ) sleep(1);
+	while( avoid_reentry ) retro_sleep(1);
 	avoid_reentry = 1;
 	pat_resetsmp();
 	pat_init_patnames();

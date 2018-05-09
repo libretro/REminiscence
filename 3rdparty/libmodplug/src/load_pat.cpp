@@ -35,8 +35,9 @@
 #include <ctype.h>
 #ifndef _WIN32
 #include <limits.h> // for PATH_MAX
-#include <unistd.h> // for sleep
 #endif
+#include <retro_timers.h>
+
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif
@@ -1149,7 +1150,7 @@ BOOL CSoundFile::ReadPAT(const BYTE *lpStream, DWORD dwMemLength)
 	mm.sz = dwMemLength;
 	mm.pos = 0;
 	mm.error = 0;
-	while( avoid_reentry ) sleep(1);
+	while( avoid_reentry ) retro_sleep(1);
 	avoid_reentry = 1;
 	pat_read_patname(h, mmfile);
 	h->samples = pat_read_numsmp(mmfile);
