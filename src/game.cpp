@@ -158,7 +158,8 @@ void Game::sleep(int ms) {
 	const int ms_per_frame = 1000 / getFrameRate();
 	_sleep += ms;
 
-	while (_sleep >= ms_per_frame) {
+	while (_sleep >= ms_per_frame)
+   {
 		yield();
 		_sleep -= ms_per_frame;
 	}
@@ -217,11 +218,13 @@ void Game::mainLoop() {
 				playCutscene(0x41);
 				_endLoop = true;
 			} else {
-				if (_validSaveState) {
-					if (!loadGameState(0)) {
+				if (_validSaveState)
+            {
+					if (!loadGameState(0))
 						_endLoop = true;
-					}
-				} else {
+				}
+            else
+            {
 					loadLevelData();
 					resetGameState();
 				}
@@ -242,10 +245,10 @@ void Game::mainLoop() {
 			pge_process(pge);
 		}
 	}
-	if (oldLevel != _currentLevel) {
-		if (_res._isDemo) {
+	if (oldLevel != _currentLevel)
+   {
+		if (_res._isDemo)
 			_currentLevel = oldLevel;
-		}
 		changeLevel();
 		_pge_opTempVar1 = 0;
 		return;
