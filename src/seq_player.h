@@ -79,5 +79,5 @@ struct SeqPlayer {
 	SoundBufferQueue *_soundQueue;
 };
 
-#endif // SEQ_PLAYER_H__
+#endif /* SEQ_PLAYER_H__ */
 

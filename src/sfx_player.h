@@ -33,14 +33,14 @@ struct SfxPlayer {
 		int pos;
 		const uint8_t *data;
 
-		int8_t getPCM(int offset) const {
-			if (offset < 0) {
-				offset = 0;
-			} else if (offset >= (int)len) {
-				offset = len - 1;
-			}
-			return (int8_t)data[offset];
-		}
+      int8_t getPCM(int offset) const
+      {
+         if (offset < 0)
+            offset = 0;
+         else if (offset >= (int)len)
+            offset = len - 1;
+         return (int8_t)data[offset];
+      }
 	};
 
 	static const uint8_t _musicData68[];
@@ -50,8 +50,8 @@ struct SfxPlayer {
 	static const uint8_t _musicData74[];
 	static const uint8_t _musicData75[];
 	static const uint8_t _musicDataSample1[];
-	static const uint8_t _musicDataSample2[]; // tick
-	static const uint8_t _musicDataSample3[]; // bell
+	static const uint8_t _musicDataSample2[]; /* tick */
+	static const uint8_t _musicDataSample3[]; /* bell */
 	static const uint8_t _musicDataSample4[];
 	static const uint8_t _musicDataSample5[];
 	static const uint8_t _musicDataSample6[];
@@ -87,4 +87,4 @@ struct SfxPlayer {
 	static bool mixCallback(void *param, int16_t *buf, int len);
 };
 
-#endif // SFX_PLAYER_H__
+#endif /* SFX_PLAYER_H__ */
