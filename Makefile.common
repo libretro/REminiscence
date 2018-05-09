@@ -26,8 +26,8 @@ SOURCES_CXX := \
 					$(CORE_DIR)/src/seq_player.cpp \
 					$(CORE_DIR)/src/sfx_player.cpp \
 					$(CORE_DIR)/src/staticres.cpp \
-					$(CORE_DIR)/src/util.cpp \
 					$(CORE_DIR)/src/video.cpp
 
 SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c \
+					$(CORE_DIR)/src/util.c \
 					$(CORE_DIR)/src/unpack.c
