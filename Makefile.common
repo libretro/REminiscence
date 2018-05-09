@@ -1,9 +1,16 @@
 DEPS_DIR     	   := $(CORE_DIR)/3rdparty
+MODPLUG_DIR        := $(DEPS_DIR)/libmodplug/src
+
+FLAGS   += -DUSE_MODPLUG -DHAVE_SETENV -DHAVE_SINF
 
 INCFLAGS := -I$(CORE_DIR)/3rdparty \
+				-I$(MODPLUG_DIR) \
+				-I$(MODPLUG_DIR)/libmodplug \
 				-I$(CORE_DIR)/3rdparty/libco \
 				-I$(CORE_DIR)/3rdparty/libretro-common/include \
 				-I$(CORE_DIR)/src
+
+include $(MODPLUG_DIR)/Makefile.am
 
 ifneq (,$(findstring msvc2003,$(platform)))
 INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
@@ -26,7 +33,42 @@ SOURCES_CXX := \
 					$(CORE_DIR)/src/seq_player.cpp \
 					$(CORE_DIR)/src/sfx_player.cpp \
 					$(CORE_DIR)/src/staticres.cpp \
-					$(CORE_DIR)/src/video.cpp
+					$(CORE_DIR)/src/video.cpp \
+					$(MODPLUG_DIR)/sndmix.cpp         \
+					$(MODPLUG_DIR)/sndfile.cpp        \
+					$(MODPLUG_DIR)/snd_fx.cpp         \
+					$(MODPLUG_DIR)/snd_flt.cpp        \
+					$(MODPLUG_DIR)/snd_dsp.cpp        \
+					$(MODPLUG_DIR)/fastmix.cpp        \
+					$(MODPLUG_DIR)/mmcmp.cpp          \
+					$(MODPLUG_DIR)/load_xm.cpp        \
+					$(MODPLUG_DIR)/load_wav.cpp       \
+					$(MODPLUG_DIR)/load_umx.cpp       \
+					$(MODPLUG_DIR)/load_ult.cpp       \
+					$(MODPLUG_DIR)/load_stm.cpp       \
+					$(MODPLUG_DIR)/load_s3m.cpp       \
+					$(MODPLUG_DIR)/load_ptm.cpp       \
+					$(MODPLUG_DIR)/load_okt.cpp       \
+					$(MODPLUG_DIR)/load_mtm.cpp       \
+					$(MODPLUG_DIR)/load_mod.cpp       \
+					$(MODPLUG_DIR)/load_med.cpp       \
+					$(MODPLUG_DIR)/load_mdl.cpp       \
+					$(MODPLUG_DIR)/load_it.cpp        \
+					$(MODPLUG_DIR)/load_far.cpp       \
+					$(MODPLUG_DIR)/load_dsm.cpp       \
+					$(MODPLUG_DIR)/load_dmf.cpp       \
+					$(MODPLUG_DIR)/load_dbm.cpp       \
+					$(MODPLUG_DIR)/load_ams.cpp       \
+					$(MODPLUG_DIR)/load_amf.cpp       \
+					$(MODPLUG_DIR)/load_669.cpp       \
+					$(MODPLUG_DIR)/load_j2b.cpp       \
+					$(MODPLUG_DIR)/load_mt2.cpp       \
+					$(MODPLUG_DIR)/load_psm.cpp       \
+					$(MODPLUG_DIR)/load_abc.cpp       \
+					$(MODPLUG_DIR)/load_mid.cpp       \
+					$(MODPLUG_DIR)/load_pat.cpp       \
+					$(MODPLUG_DIR)/modplug.cpp
+
 
 SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c \
 					$(CORE_DIR)/src/util.c \
