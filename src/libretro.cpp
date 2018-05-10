@@ -11,8 +11,7 @@
 #include "game.h"
 #include "util.h"
 #include "video.h"
-#include <cstdlib>
-#include <libgen.h>
+#include <file/file_path.h>
 
 #define RE_VERSION "0.3.6"
 
@@ -183,8 +182,10 @@ bool retro_load_game(const struct retro_game_info *info)
 		{0},
 	};
 
-	char *dataPath = dirname(const_cast<char *>(info->path));
+	char *dataPath = strdup(info->path);
+	path_basedir(dataPath);
 	fs = new FileSystem(dataPath);
+	free(dataPath);
 	const int version = detectVersion(fs);
 	if (version != kResourceTypeDOS)
 		return false;

@@ -8,7 +8,6 @@ list(APPEND CMAKE_MODULE_PATH ${reminiscence_SOURCE_DIR}/cmake)
 option(BUILD_EXE "Build executable" ON)
 option(BUILD_CORE "Build libretro core" ON)
 option(USE_MODPLUG "Use modplug" ON)
-option(BUILD_TESTS "Build all unit tests." ON)
 set(TESTS_DATA_PATH "${CMAKE_SOURCE_DIR}/data" CACHE STRING "Path to data files for unit tests (./data)")
 
 if (USE_MODPLUG)
@@ -18,6 +17,7 @@ endif ()
 
 add_subdirectory(3rdparty/libco)
 add_subdirectory(3rdparty/libmodplug)
+add_subdirectory(3rdparty/libretro-common)
 
 include_directories(src)
 include_directories(3rdparty/libco)
@@ -46,30 +46,6 @@ set(LIB_SOURCES
 
 add_library(reminiscence ${LIB_SOURCES})
 
-IF (BUILD_TESTS)
-    IF (APPLE)
-        add_definitions(-DGTEST_USE_OWN_TR1_TUPLE)
-        add_definitions(-D__GLIBCXX__)
-    ENDIF ()
-    add_subdirectory(3rdparty/googletest)
-    enable_testing()
-
-    add_definitions(-DDATA_PATH="${TESTS_DATA_PATH}")
-
-    ##############
-    # Unit Tests
-    ##############
-    add_executable(runUnitTests tests/GameTests.cpp)
-
-    # Standard linking to gtest stuff.
-    target_link_libraries(runUnitTests reminiscence modplug gtest gtest_main libco)
-
-    # This is so you can do 'make test' to see all your tests run, instead of
-    # manually running the executable runUnitTests to see those specific tests.
-    add_test(Game-One runUnitTests)
-
-ENDIF ()
-
 if (BUILD_EXE)
     set(EXE_SOURCES
         src/sdlmain.cpp)
@@ -79,7 +55,7 @@ if (BUILD_EXE)
 
     add_executable(reminiscence-sdl ${EXE_SOURCES})
 
-    target_link_libraries(reminiscence-sdl reminiscence modplug libco ${SDL2_LIBRARY})
+    target_link_libraries(reminiscence-sdl reminiscence libretro-common modplug libco ${SDL2_LIBRARY})
 endif ()
 
 if (BUILD_CORE)
@@ -88,6 +64,6 @@ if (BUILD_CORE)
 
     add_library(reminiscence_libretro SHARED ${CORE_SOURCES})
     set_target_properties(reminiscence_libretro PROPERTIES PREFIX "")
-    target_link_libraries(reminiscence_libretro reminiscence modplug libco)
+    target_link_libraries(reminiscence_libretro reminiscence libretro-common modplug libco)
 endif ()
 
