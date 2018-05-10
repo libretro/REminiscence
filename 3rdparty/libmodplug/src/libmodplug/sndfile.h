@@ -1012,8 +1012,8 @@ ARM_get32(const void *data)
 #define bswapBE16(X) bswap_16(ARM_get16(&X))
 #define bswapBE32(X) bswap_32(ARM_get32(&X))
 
-// From libsdl
-#elif defined(WORDS_BIGENDIAN) && WORDS_BIGENDIAN
+/* From libsdl */
+#elif defined(MSB_FIRST)
 #define bswapLE16(X) bswap_16(X)
 #define bswapLE32(X) bswap_32(X)
 #define bswapBE16(X) (X)
