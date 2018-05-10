@@ -668,7 +668,7 @@ ModPlayer::~ModPlayer() {
 void ModPlayer::play(int num) {
 	if (num < _modulesFilesCount) {
 		File f;
-		for (uint8_t i = 0; i < ARRAYSIZE(_modulesFiles[num]); ++i) {
+		for (uint8_t i = 0; i < ARRAY_SIZE(_modulesFiles[num]); ++i) {
 			if (f.open(_modulesFiles[num][i], "rb", _fs)) {
 				_impl->init(_mix->getSampleRate());
 				if (_impl->load(&f)) {

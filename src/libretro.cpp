@@ -325,7 +325,7 @@ static void update_input(void)
 
    pi.dirMask = 0;
 
-   for (i = 0; i < ARRAYSIZE(joy_map); i++)
+   for (i = 0; i < ARRAY_SIZE(joy_map); i++)
    {
       if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy_map[i].retro))
          pi.dirMask |= joy_map[i].player;

@@ -100,7 +100,7 @@ void Game::run() {
 				break;
 			}
 			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_DEMO) {
-				_demoBin = (_demoBin + 1) % ARRAYSIZE(_demoInputs);
+				_demoBin = (_demoBin + 1) % ARRAY_SIZE(_demoInputs);
 				const char *fn = _demoInputs[_demoBin].name;
 				debug(DBG_DEMO, "Loading inputs from '%s'", fn);
 				_res.load_DEM(fn);

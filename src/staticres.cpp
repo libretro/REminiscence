@@ -3224,7 +3224,7 @@ const char *ModPlayer::_modulesFiles[][2] = {
 //	{ 0,             0,                        }  // rechage3
 };
 
-const int ModPlayer::_modulesFilesCount = ARRAYSIZE(_modulesFiles);
+const int ModPlayer::_modulesFilesCount = ARRAY_SIZE(_modulesFiles);
 
 const char *SeqPlayer::_namesTable[] = {
 	/* 0x00 */
