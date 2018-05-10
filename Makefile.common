@@ -7,13 +7,11 @@ INCFLAGS := -I$(CORE_DIR)/3rdparty \
 				-I$(CORE_DIR)/src
 
 ifeq ($(WANT_MODPLUG), 1)
-FLAGS += -DUSE_MODPLUG
+FLAGS += -DUSE_MODPLUG -DHAVE_SINF
 INCFLAGS += \
 				-I$(MODPLUG_DIR) \
 				-I$(MODPLUG_DIR)/libmodplug
 endif
-
-FLAGS += -DHAVE_SINF
 
 ifneq ($(platform), win)
 FLAGS += -DHAVE_SETENV
