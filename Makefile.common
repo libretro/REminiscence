@@ -1,5 +1,6 @@
 DEPS_DIR     	   := $(CORE_DIR)/3rdparty
 MODPLUG_DIR        := $(DEPS_DIR)/libmodplug/src
+COMMON_DIR         := $(DEPS_DIR)/libretro-common
 
 INCFLAGS := -I$(CORE_DIR)/3rdparty \
 				-I$(CORE_DIR)/3rdparty/libco \
@@ -7,7 +8,7 @@ INCFLAGS := -I$(CORE_DIR)/3rdparty \
 				-I$(CORE_DIR)/src
 
 ifeq ($(WANT_MODPLUG), 1)
-FLAGS += -DUSE_MODPLUG -DHAVE_SINF
+FLAGS += -DUSE_MODPLUG -DHAVE_SINF -DMODPLUG_BASIC_SUPPORT
 INCFLAGS += \
 				-I$(MODPLUG_DIR) \
 				-I$(MODPLUG_DIR)/libmodplug
@@ -23,7 +24,11 @@ endif
 
 SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c \
 					$(CORE_DIR)/src/util.c \
-					$(CORE_DIR)/src/unpack.c
+					$(CORE_DIR)/src/unpack.c \
+					$(COMMON_DIR)/file/file_path.c \
+					$(COMMON_DIR)/string/stdstring.c \
+					$(COMMON_DIR)/compat/compat_strcasestr.c \
+					$(COMMON_DIR)/encodings/encoding_utf.c
 
 SOURCES_CXX := \
 					$(CORE_DIR)/src/collision.cpp \
@@ -55,29 +60,8 @@ SOURCES_CXX += \
 					$(MODPLUG_DIR)/mmcmp.cpp          \
 					$(MODPLUG_DIR)/load_xm.cpp        \
 					$(MODPLUG_DIR)/load_wav.cpp       \
-					$(MODPLUG_DIR)/load_umx.cpp       \
-					$(MODPLUG_DIR)/load_ult.cpp       \
-					$(MODPLUG_DIR)/load_stm.cpp       \
 					$(MODPLUG_DIR)/load_s3m.cpp       \
-					$(MODPLUG_DIR)/load_ptm.cpp       \
-					$(MODPLUG_DIR)/load_okt.cpp       \
-					$(MODPLUG_DIR)/load_mtm.cpp       \
 					$(MODPLUG_DIR)/load_mod.cpp       \
-					$(MODPLUG_DIR)/load_med.cpp       \
-					$(MODPLUG_DIR)/load_mdl.cpp       \
 					$(MODPLUG_DIR)/load_it.cpp        \
-					$(MODPLUG_DIR)/load_far.cpp       \
-					$(MODPLUG_DIR)/load_dsm.cpp       \
-					$(MODPLUG_DIR)/load_dmf.cpp       \
-					$(MODPLUG_DIR)/load_dbm.cpp       \
-					$(MODPLUG_DIR)/load_ams.cpp       \
-					$(MODPLUG_DIR)/load_amf.cpp       \
-					$(MODPLUG_DIR)/load_669.cpp       \
-					$(MODPLUG_DIR)/load_j2b.cpp       \
-					$(MODPLUG_DIR)/load_mt2.cpp       \
-					$(MODPLUG_DIR)/load_psm.cpp       \
-					$(MODPLUG_DIR)/load_abc.cpp       \
-					$(MODPLUG_DIR)/load_mid.cpp       \
-					$(MODPLUG_DIR)/load_pat.cpp       \
 					$(MODPLUG_DIR)/modplug.cpp
 endif

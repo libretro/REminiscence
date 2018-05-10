@@ -11,7 +11,7 @@ option(USE_MODPLUG "Use modplug" ON)
 set(TESTS_DATA_PATH "${CMAKE_SOURCE_DIR}/data" CACHE STRING "Path to data files for unit tests (./data)")
 
 if (USE_MODPLUG)
-    add_definitions(-DUSE_MODPLUG)
+    add_definitions(-DUSE_MODPLUG -DMODPLUG_BASIC_SUPPORT)
     include_directories(3rdparty/libmodplug/src)
 endif ()
 
