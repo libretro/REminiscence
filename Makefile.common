@@ -28,6 +28,7 @@ SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c \
 					$(COMMON_DIR)/file/file_path.c \
 					$(COMMON_DIR)/string/stdstring.c \
 					$(COMMON_DIR)/compat/compat_strcasestr.c \
+					$(COMMON_DIR)/compat/compat_strl.c \
 					$(COMMON_DIR)/encodings/encoding_utf.c
 
 SOURCES_CXX := \
