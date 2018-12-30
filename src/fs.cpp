@@ -99,10 +99,10 @@ struct FileSystem_impl {
 
 #ifdef _WIN32
 void FileSystem_impl::getPathListFromDirectory(const char *dir) {
-	WIN32_FIND_DATA findData;
+	WIN32_FIND_DATAA findData;
 	char searchPath[MAX_PATH];
 	snprintf(searchPath, sizeof(searchPath), "%s/*", dir);
-	HANDLE h = FindFirstFile(searchPath, &findData);
+	HANDLE h = FindFirstFileA(searchPath, &findData);
 	if (h) {
 		do {
 			if (findData.cFileName[0] == '.') {
@@ -115,7 +115,7 @@ void FileSystem_impl::getPathListFromDirectory(const char *dir) {
 			} else {
 				addPath(dir, findData.cFileName);
 			}
-		} while (FindNextFile(h, &findData));
+		} while (FindNextFileA(h, &findData));
 		FindClose(h);
 	}
 }
