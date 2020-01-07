@@ -159,6 +159,10 @@ bool SfxPlayer::mix(int8_t *buf, int len) {
 }
 
 bool SfxPlayer::mixCallback(void *param, int16_t *samples, int len) {
+   /* TODO/FIXME - error C2131: expression did not evaluate to a constant
+    * note: failure was caused by a read of a variable outside its lifetime
+    * note: see usage of 'lan' 
+    */
 	int8_t buf[len];
 	memset(buf, 0, sizeof(buf));
 	const bool ret = ((SfxPlayer *)param)->mix(buf, len);
