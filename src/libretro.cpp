@@ -30,6 +30,9 @@ static retro_audio_sample_t        audio_cb;
 static retro_audio_sample_batch_t  audio_batch_cb;
 static struct retro_system_av_info g_av_info;
 
+static bool libretro_supports_bitmasks = false;
+static int16_t joypad_bits;
+
 /************************************
  * libretro implementation
  ************************************/
@@ -280,10 +283,14 @@ void retro_init(void)
 		log_cb = NULL;
 
 	environ_cb(RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL, &level);
+
+	if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
+		libretro_supports_bitmasks = true;
 }
 
 void retro_deinit(void)
 {
+	libretro_supports_bitmasks = false;
 }
 
 void retro_reset(void)
@@ -293,7 +300,13 @@ void retro_reset(void)
 
 static void update_button(unsigned int id, bool &button, bool *old_val)
 {
-   bool new_val = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, id) != 0;
+   bool new_val;
+
+   if (libretro_supports_bitmasks)
+      new_val = joypad_bits & (1 << id) ? 1 : 0;
+   else
+      new_val = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, id) != 0;
+
    if (old_val == NULL || new_val != *old_val)
    {
       button = new_val;
@@ -310,6 +323,7 @@ struct dir_map_t {
 static void update_input(void)
 {
    unsigned i;
+
    struct dir_map_t joy_map[] = {
       {RETRO_DEVICE_ID_JOYPAD_UP,    PlayerInput::DIR_UP},
       {RETRO_DEVICE_ID_JOYPAD_RIGHT, PlayerInput::DIR_RIGHT},
@@ -326,11 +340,17 @@ static void update_input(void)
 
    pi.dirMask = 0;
 
-   for (i = 0; i < ARRAY_SIZE(joy_map); i++)
+   if (libretro_supports_bitmasks)
+      joypad_bits = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+   else
    {
-      if (input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, joy_map[i].retro))
-         pi.dirMask |= joy_map[i].player;
+      joypad_bits = 0;
+      for (i = 0; i < (RETRO_DEVICE_ID_JOYPAD_R3+1); i++)
+         joypad_bits |= input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, i) ? (1 << i) : 0;
    }
+
+   for (i = 0; i < ARRAY_SIZE(joy_map); i++)
+      pi.dirMask |= joypad_bits & (1 << joy_map[i].retro) ? joy_map[i].player : 0;
 
    update_button(RETRO_DEVICE_ID_JOYPAD_X, pi.action, NULL);
    update_button(RETRO_DEVICE_ID_JOYPAD_B, pi.weapon, NULL);
