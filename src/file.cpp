@@ -4,11 +4,13 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#include <stdio.h>
+
+#include <retro_miscellaneous.h>
+
 #include "file.h"
 #include "fs.h"
 #include "util.h"
-
-#include <retro_miscellaneous.h>
 
 #ifdef USE_ZLIB
 #include "zlib.h"

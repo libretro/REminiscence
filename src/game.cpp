@@ -5,13 +5,14 @@
  */
 
 #include <ctime>
+#include <stdio.h>
+#include <libco.h>
 #include "file.h"
 #include "fs.h"
 #include "game.h"
 #include "seq_player.h"
 #include "unpack.h"
 #include "util.h"
-#include <libco.h>
 
 struct StateManager {
 	Game *_game;

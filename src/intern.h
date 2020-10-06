@@ -7,7 +7,6 @@
 #ifndef INTERN_H__
 #define INTERN_H__
 
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>

@@ -4,6 +4,7 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
+#include <stdio.h>
 #include "file.h"
 #include "fs.h"
 #include "resource.h"
