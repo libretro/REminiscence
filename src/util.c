@@ -18,7 +18,8 @@ uint16_t g_debugMask;
 void debug(uint16_t cm, const char *msg, ...)
 {
    char buf[1024];
-   if (cm & g_debugMask) {
+   if (cm & g_debugMask)
+   {
       va_list va;
       va_start(va, msg);
       vsprintf(buf, msg, va);
