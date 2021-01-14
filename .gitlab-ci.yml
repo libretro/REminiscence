@@ -16,11 +16,11 @@ include:
   # Windows 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-x64-mingw.yml'
-    
+
   # Windows 32-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/windows-i686-mingw.yml'
-    
+
   # Linux 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/linux-x64.yml'
@@ -32,7 +32,7 @@ include:
   # MacOS 64-bit
   - project: 'libretro-infrastructure/ci-templates'
     file: '/osx-x64.yml'
-    
+
   ################################## CELLULAR ################################
   # Android
   - project: 'libretro-infrastructure/ci-templates'
@@ -46,7 +46,11 @@ include:
   # PlayStation Vita
   - project: 'libretro-infrastructure/ci-templates'
     file: '/vita-static.yml'
-    
+
+  # Nintendo Wii
+  - project: 'libretro-infrastructure/ci-templates'
+    file: '/wii-static.yml'
+
   # Nintendo Switch
   - project: 'libretro-infrastructure/ci-templates'
     file: '/libnx-static.yml'
@@ -67,13 +71,13 @@ libretro-build-windows-x64:
   extends:
     - .libretro-windows-x64-mingw-make-default
     - .core-defs
-    
+
 # Windows 32-bit
 libretro-build-windows-i686:
   extends:
     - .libretro-windows-i686-mingw-make-default
     - .core-defs
-    
+
 # Linux 64-bit
 libretro-build-linux-x64:
   extends:
@@ -91,7 +95,7 @@ libretro-build-osx-x64:
   extends:
     - .libretro-osx-x64-make-default
     - .core-defs
-    
+
 ################################### CELLULAR #################################
 # Android ARMv7a
 android-armeabi-v7a:
@@ -110,7 +114,7 @@ android-x86_64:
   extends:
     - .libretro-android-jni-x86_64
     - .core-defs
-    
+
 # Android 32-bit x86
 android-x86:
   extends:
@@ -129,7 +133,13 @@ libretro-build-vita:
   extends:
     - .libretro-vita-static-retroarch-master
     - .core-defs
-    
+
+# Nintendo Wii
+libretro-build-wii:
+  extends:
+    - .libretro-wii-static-retroarch-master
+    - .core-defs
+
 # Nintendo Switch
 libretro-build-libnx-aarch64:
   extends:
