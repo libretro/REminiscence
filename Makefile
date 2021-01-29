@@ -20,6 +20,9 @@ ifeq ($(platform),)
    else ifneq ($(findstring Darwin,$(shell uname -a)),)
       platform = osx
       arch = intel
+      ifeq ($(shell uname -p),arm)
+         arch = arm
+      endif
       ifeq ($(shell uname -p),powerpc)
          arch = ppc
       endif
@@ -44,11 +47,6 @@ TARGET_NAME := reminiscence
 GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
 ifneq ($(GIT_VERSION)," unknown")
    CXXFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
-endif
-
-arch = intel
-ifeq ($(shell uname -p),powerpc)
-   arch = ppc
 endif
 
 # Unix
@@ -84,9 +82,36 @@ else ifeq ($(platform), osx)
       ENDIANNESS_DEFINES := -DMSB_FIRST -DBYTE_ORDER=BIG_ENDIAN
       OLD_GCC := 1
    endif
+
    OSXVER = `sw_vers -productVersion | cut -d. -f 2`
    OSX_LT_MAVERICKS = `(( $(OSXVER) <= 9)) && echo "YES"`
-   fpic += -mmacosx-version-min=10.9
+   MINVERSION =
+   ifeq ($(OSX_LT_MAVERICKS),YES)
+   else
+   	   MINVERSION = -mmacosx-version-min=10.9
+   endif
+   FLAGS += -DHAVE_POSIX_MEMALIGN
+
+arch = intel
+ifeq ($(shell uname -p),arm)
+   arch = arm
+   MINVERSION =
+endif
+ifeq ($(shell uname -p),powerpc)
+   arch = ppc
+endif
+
+
+   ifeq ($(CROSS_COMPILE),1)
+		TARGET_RULE   = -target $(LIBRETRO_APPLE_PLATFORM) -isysroot $(LIBRETRO_APPLE_ISYSROOT)
+		CFLAGS   += $(TARGET_RULE)
+		CPPFLAGS += $(TARGET_RULE)
+		CXXFLAGS += $(TARGET_RULE)
+		LDFLAGS  += $(TARGET_RULE)
+		MINVERSION =
+   endif
+
+   fpic += $(MINVERSION)
 
 # iOS
 else ifneq (,$(findstring ios,$(platform)))
