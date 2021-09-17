@@ -14,7 +14,17 @@ Mixer::Mixer(FileSystem *fs, Game *game)
 
 void Mixer::init()
 {
-	memset(_channels, 0, sizeof(_channels));
+	unsigned i;
+	for (i = 0; i < NUM_CHANNELS; ++i)
+	{
+		MixerChannel *cur = &_channels[i];
+		cur->active       = false;
+		cur->volume       = 0;
+		cur->chunk.data   = NULL;
+		cur->chunk.len    = 0;
+		cur->chunkPos     = 0;
+		cur->chunkInc     = 0;
+	}
 	_premixHook = 0;
 }
 
