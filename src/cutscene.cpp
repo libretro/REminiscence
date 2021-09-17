@@ -8,7 +8,6 @@
 #include "cutscene.h"
 #include "resource.h"
 #include "game.h"
-#include "util.h"
 #include "video.h"
 
 Cutscene::Cutscene(Resource *res, Game *game, Video *vid)
@@ -893,7 +892,7 @@ void Cutscene::mainLoop(uint16_t offset) {
 		}
 		op >>= 2;
 		if (op >= NUM_OPCODES) {
-			error("Invalid cutscene opcode = 0x%02X", op);
+			log_cb(RETRO_LOG_ERROR, "Invalid cutscene opcode = 0x%02X\n", op);
 		}
 		(this->*_opcodeTable[op])();
 		if (_game->_pi.inventory_skip) {

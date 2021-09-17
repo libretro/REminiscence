@@ -9,7 +9,6 @@
 #include "file.h"
 #include "fs.h"
 #include "game.h"
-#include "util.h"
 #include "video.h"
 #include <file/file_path.h>
 
@@ -21,7 +20,7 @@ FileSystem  *fs;
 Game        *game;
 PlayerInput lastInput;
 
-static retro_log_printf_t          log_cb;
+retro_log_printf_t          log_cb;
 static retro_video_refresh_t       video_cb;
 static retro_input_poll_t          input_poll_cb;
 static retro_input_state_t         input_state_cb;

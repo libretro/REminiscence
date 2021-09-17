@@ -10,7 +10,6 @@
 #include "seq_player.h"
 #include "game.h"
 #include "video.h"
-#include "util.h"
 
 bool SeqDemuxer::open(File *f) {
 	_f = f;
@@ -40,7 +39,7 @@ bool SeqDemuxer::readHeader() {
 			_buffers[i].avail = size;
 			_buffers[i].data = (uint8_t *)malloc(size);
 			if (!_buffers[i].data) {
-				error("Unable to allocate %d bytes for SEQ buffer %d", size, i);
+				log_cb(RETRO_LOG_ERROR, "Unable to allocate %d bytes for SEQ buffer %d\n", size, i);
 			}
 		}
 	}

@@ -6,7 +6,6 @@
 
 #include "game.h"
 #include "resource.h"
-#include "util.h"
 
 void Game::col_prepareRoomState() {
 	memset(_col_activeCollisionSlots, 0xFF, sizeof(_col_activeCollisionSlots));

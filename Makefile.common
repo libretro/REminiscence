@@ -23,46 +23,45 @@ INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
 endif
 
 SOURCES_C :=	$(CORE_DIR)/3rdparty/libco/libco.c \
-					$(CORE_DIR)/src/util.c \
-					$(CORE_DIR)/src/unpack.c \
-					$(COMMON_DIR)/file/file_path.c \
-					$(COMMON_DIR)/string/stdstring.c \
-					$(COMMON_DIR)/compat/compat_strcasestr.c \
-					$(COMMON_DIR)/compat/compat_strl.c \
-					$(COMMON_DIR)/encodings/encoding_utf.c
+		$(CORE_DIR)/src/unpack.c \
+		$(COMMON_DIR)/file/file_path.c \
+		$(COMMON_DIR)/string/stdstring.c \
+		$(COMMON_DIR)/compat/compat_strcasestr.c \
+		$(COMMON_DIR)/compat/compat_strl.c \
+		$(COMMON_DIR)/encodings/encoding_utf.c
 
 SOURCES_CXX := \
-					$(CORE_DIR)/src/collision.cpp \
-					$(CORE_DIR)/src/cutscene.cpp \
-					$(CORE_DIR)/src/file.cpp \
-					$(CORE_DIR)/src/fs.cpp \
-					$(CORE_DIR)/src/game.cpp \
-					$(CORE_DIR)/src/graphics.cpp \
-					$(CORE_DIR)/src/libretro.cpp \
-					$(CORE_DIR)/src/menu.cpp \
-					$(CORE_DIR)/src/mixer.cpp \
-					$(CORE_DIR)/src/mod_player.cpp \
-					$(CORE_DIR)/src/piege.cpp \
-					$(CORE_DIR)/src/resource.cpp \
-					$(CORE_DIR)/src/resource_aba.cpp \
-					$(CORE_DIR)/src/seq_player.cpp \
-					$(CORE_DIR)/src/sfx_player.cpp \
-					$(CORE_DIR)/src/staticres.cpp \
-					$(CORE_DIR)/src/video.cpp
+	       $(CORE_DIR)/src/collision.cpp \
+	       $(CORE_DIR)/src/cutscene.cpp \
+	       $(CORE_DIR)/src/file.cpp \
+	       $(CORE_DIR)/src/fs.cpp \
+	       $(CORE_DIR)/src/game.cpp \
+	       $(CORE_DIR)/src/graphics.cpp \
+	       $(CORE_DIR)/src/libretro.cpp \
+	       $(CORE_DIR)/src/menu.cpp \
+	       $(CORE_DIR)/src/mixer.cpp \
+	       $(CORE_DIR)/src/mod_player.cpp \
+	       $(CORE_DIR)/src/piege.cpp \
+	       $(CORE_DIR)/src/resource.cpp \
+	       $(CORE_DIR)/src/resource_aba.cpp \
+	       $(CORE_DIR)/src/seq_player.cpp \
+	       $(CORE_DIR)/src/sfx_player.cpp \
+	       $(CORE_DIR)/src/staticres.cpp \
+	       $(CORE_DIR)/src/video.cpp
 
 ifeq ($(WANT_MODPLUG), 1)
 SOURCES_CXX += \
-					$(MODPLUG_DIR)/sndmix.cpp         \
-					$(MODPLUG_DIR)/sndfile.cpp        \
-					$(MODPLUG_DIR)/snd_fx.cpp         \
-					$(MODPLUG_DIR)/snd_flt.cpp        \
-					$(MODPLUG_DIR)/snd_dsp.cpp        \
-					$(MODPLUG_DIR)/fastmix.cpp        \
-					$(MODPLUG_DIR)/mmcmp.cpp          \
-					$(MODPLUG_DIR)/load_xm.cpp        \
-					$(MODPLUG_DIR)/load_wav.cpp       \
-					$(MODPLUG_DIR)/load_s3m.cpp       \
-					$(MODPLUG_DIR)/load_mod.cpp       \
-					$(MODPLUG_DIR)/load_it.cpp        \
-					$(MODPLUG_DIR)/modplug.cpp
+	       $(MODPLUG_DIR)/sndmix.cpp         \
+	       $(MODPLUG_DIR)/sndfile.cpp        \
+	       $(MODPLUG_DIR)/snd_fx.cpp         \
+	       $(MODPLUG_DIR)/snd_flt.cpp        \
+	       $(MODPLUG_DIR)/snd_dsp.cpp        \
+	       $(MODPLUG_DIR)/fastmix.cpp        \
+	       $(MODPLUG_DIR)/mmcmp.cpp          \
+	       $(MODPLUG_DIR)/load_xm.cpp        \
+	       $(MODPLUG_DIR)/load_wav.cpp       \
+	       $(MODPLUG_DIR)/load_s3m.cpp       \
+	       $(MODPLUG_DIR)/load_mod.cpp       \
+	       $(MODPLUG_DIR)/load_it.cpp        \
+	       $(MODPLUG_DIR)/modplug.cpp
 endif

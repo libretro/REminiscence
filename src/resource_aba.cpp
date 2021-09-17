@@ -1,7 +1,6 @@
 
 #include "resource_aba.h"
 #include "unpack.h"
-#include "util.h"
 
 const char *ResourceAba::FILENAME = "DEMO_UK.ABA";
 
@@ -21,15 +20,11 @@ void ResourceAba::readEntries()
 {
    if (_f.open(FILENAME, "rb", _fs))
    {
+      int i;
+      uint32_t nextOffset = 0;
       _entriesCount = _f.readUint16BE();
       _entries = (ResourceAbaEntry *)calloc(_entriesCount, sizeof(ResourceAbaEntry));
-      if (!_entries)
-      {
-         error("Failed to allocate %d _entries", _entriesCount);
-         return;
-      }
-      uint32_t nextOffset = 0;
-      for (int i = 0; i < _entriesCount; ++i)
+      for (i = 0; i < _entriesCount; ++i)
       {
          _f.read(_entries[i].name, sizeof(_entries[i].name));
          _entries[i].offset = _f.readUint32BE();
@@ -62,11 +57,6 @@ uint8_t *ResourceAba::loadEntry(const char *name, uint32_t *size)
       if (size)
          *size = e->size;
       uint8_t *tmp = (uint8_t *)malloc(e->compressedSize);
-      if (!tmp)
-      {
-         error("Failed to allocate %d bytes", e->compressedSize);
-         return 0;
-      }
       _f.seek(e->offset);
       _f.read(tmp, e->compressedSize);
       if (e->compressedSize == e->size)
@@ -74,15 +64,9 @@ uint8_t *ResourceAba::loadEntry(const char *name, uint32_t *size)
       else
       {
          dst = (uint8_t *)malloc(e->size);
-         if (!dst)
-         {
-            error("Failed to allocate %d bytes", e->size);
-            free(tmp);
-            return 0;
-         }
          const bool ret = delphine_unpack(dst, tmp, e->compressedSize);
          if (!ret) {
-            error("Bad CRC for '%s'", name);
+            log_cb(RETRO_LOG_ERROR, "Bad CRC for '%s'\n", name);
          }
          free(tmp);
       }

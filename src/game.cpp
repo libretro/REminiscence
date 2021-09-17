@@ -12,7 +12,6 @@
 #include "game.h"
 #include "seq_player.h"
 #include "unpack.h"
-#include "util.h"
 
 struct StateManager {
 	Game *_game;
@@ -689,7 +688,7 @@ void Game::drawStoryTexts() {
 						textColor = 0xEB;
 						break;
 					default:
-						warning("Unhandled JP color code 0x%x", str[1]);
+						log_cb(RETRO_LOG_WARN, "Unhandled JP color code 0x%x\n", str[1]);
 						break;
 					}
 					str += 2;
@@ -1433,7 +1432,7 @@ bool Game::saveGameState(uint8_t slot) {
 	makeGameStateName(slot, stateFile);
 	File f;
 	if (!f.open(stateFile, "wb", _savePath)) {
-		warning("Unable to save state file '%s'", stateFile);
+		log_cb(RETRO_LOG_WARN, "Unable to save state file '%s'\n", stateFile);
 	} else {
 		// header
 		f.writeUint32BE(TAG_FBSV);
@@ -1445,7 +1444,7 @@ bool Game::saveGameState(uint8_t slot) {
 		// contents
 		saveState(&f);
 		if (f.ioErr()) {
-			warning("I/O error when saving game state");
+			log_cb(RETRO_LOG_WARN, "I/O error when saving game state\n");
 		} else {
 			success = true;
 		}
@@ -1517,15 +1516,15 @@ bool Game::loadGameState(uint8_t slot) {
 	makeGameStateName(slot, stateFile);
 	File f;
 	if (!f.open(stateFile, "zrb", _savePath)) {
-		warning("Unable to open state file '%s'", stateFile);
+		log_cb(RETRO_LOG_WARN, "Unable to open state file '%s'\n", stateFile);
 	} else {
 		uint32_t id = f.readUint32BE();
 		if (id != TAG_FBSV) {
-			warning("Bad save state format");
+			log_cb(RETRO_LOG_WARN, "Bad save state format\n");
 		} else {
 			uint16_t ver = f.readUint16BE();
 			if (ver != 2) {
-				warning("Invalid save state version");
+				log_cb(RETRO_LOG_WARN, "Invalid save state version\n");
 			} else {
 				// header
 				char buf[32];
@@ -1533,7 +1532,7 @@ bool Game::loadGameState(uint8_t slot) {
 				// contents
 				loadState(&f);
 				if (f.ioErr()) {
-					warning("I/O error when loading game state");
+					log_cb(RETRO_LOG_WARN, "I/O error when loading game state\n");
 				} else {
 					success = true;
 				}

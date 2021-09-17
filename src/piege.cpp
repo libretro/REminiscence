@@ -7,7 +7,6 @@
 #include "cutscene.h"
 #include "game.h"
 #include "resource.h"
-#include "util.h"
 
 void Game::pge_resetGroups() {
 	memset(_pge_groupsTable, 0, sizeof(_pge_groupsTable));
@@ -258,7 +257,7 @@ int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
 		args.b = 0;
 		op = _pge_opcodeTable[obj->opcode1];
 		if (!op) {
-			warning("Game::pge_execute() missing call to pge_opcode 0x%X", obj->opcode1);
+			log_cb(RETRO_LOG_WARN, "Game::pge_execute() missing call to pge_opcode 0x%X\n", obj->opcode1);
 			return 0;
 		}
 		if (!((this->*op)(&args) & 0xFF))
@@ -270,7 +269,7 @@ int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
 		args.b = obj->opcode_arg1;
 		op = _pge_opcodeTable[obj->opcode2];
 		if (!op) {
-			warning("Game::pge_execute() missing call to pge_opcode 0x%X", obj->opcode2);
+			log_cb(RETRO_LOG_WARN, "Game::pge_execute() missing call to pge_opcode 0x%X\n", obj->opcode2);
 			return 0;
 		}
 		if (!((this->*op)(&args) & 0xFF))
@@ -284,7 +283,7 @@ int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
 		if (op) {
 			(this->*op)(&args);
 		} else {
-			warning("Game::pge_execute() missing call to pge_opcode 0x%X", obj->opcode3);
+			log_cb(RETRO_LOG_WARN, "Game::pge_execute() missing call to pge_opcode 0x%X\n", obj->opcode3);
 		}
 	}
 	live_pge->obj_type = obj->init_obj_type;

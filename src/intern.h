@@ -13,8 +13,11 @@
 #include <stdint.h>
 
 #include <retro_inline.h>
+#include <libretro.h>
 
 #include "intern_structs.h"
+
+extern retro_log_printf_t          log_cb;
 
 template<typename T>
 static INLINE void SWAP(T &a, T &b) {

@@ -7,7 +7,6 @@
 #include "game.h"
 #include "menu.h"
 #include "resource.h"
-#include "util.h"
 #include "video.h"
 
 Menu::Menu(Resource *res, Game *stub, Video *vid)

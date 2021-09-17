@@ -10,7 +10,6 @@
 
 #include "file.h"
 #include "fs.h"
-#include "util.h"
 
 struct StdioFile : File_impl {
 	FILE *_fp;

@@ -6,7 +6,6 @@
 
 #include "mixer.h"
 #include "game.h"
-#include "util.h"
 
 Mixer::Mixer(FileSystem *fs, Game *game)
 	: _game(game), _musicType(MT_NONE), _mod(this, fs), _sfx(this) {

@@ -9,7 +9,6 @@
 #include "fs.h"
 #include "resource.h"
 #include "unpack.h"
-#include "util.h"
 
 Resource::Resource(FileSystem *fs, Language lang) {
 	memset(this, 0, sizeof(Resource));
@@ -21,12 +20,12 @@ Resource::Resource(FileSystem *fs, Language lang) {
 	_readUint32 = READ_LE_UINT32;
 	_scratchBuffer = (uint8_t *)malloc(320 * 224 + 1024);
 	if (!_scratchBuffer) {
-		error("Unable to allocate temporary memory buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate temporary memory buffer\n");
 	}
 	static const int kBankDataSize = 0x7000;
 	_bankData = (uint8_t *)malloc(kBankDataSize);
 	if (!_bankData) {
-		error("Unable to allocate bank data buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate bank data buffer\n");
 	}
 	_bankDataTail = _bankData + kBankDataSize;
 	clearBankData();
@@ -101,7 +100,7 @@ void Resource::load_FIB(const char *fileName) {
 		_numSfx = f.readUint16LE();
 		_sfxList = (SoundFx *)malloc(_numSfx * sizeof(SoundFx));
 		if (!_sfxList) {
-			error("Unable to allocate SoundFx table");
+			log_cb(RETRO_LOG_ERROR, "Unable to allocate SoundFx table\n");
 		}
 		int i;
 		for (i = 0; i < _numSfx; ++i) {
@@ -118,7 +117,7 @@ void Resource::load_FIB(const char *fileName) {
 			f.seek(sfx->offset);
 			uint8_t *data = (uint8_t *)malloc(sfx->len * 2);
 			if (!data) {
-				error("Unable to allocate SoundFx data buffer");
+				log_cb(RETRO_LOG_ERROR, "Unable to allocate SoundFx data buffer\n");
 			}
 			sfx->data = data;
 			uint8_t c = f.readByte();
@@ -135,10 +134,10 @@ void Resource::load_FIB(const char *fileName) {
 			sfx->len *= 2;
 		}
 		if (f.ioErr()) {
-			error("I/O error when reading '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 		}
 	} else {
-		error("Cannot open '%s'", _entryName);
+		log_cb(RETRO_LOG_ERROR, "Cannot open '%s'\n", _entryName);
 	}
 }
 
@@ -148,10 +147,10 @@ void Resource::load_MAP_menu(const char *fileName, uint8_t *dstPtr) {
 	File f;
 	if (f.open(_entryName, "rb", _fs)) {
 		if (f.read(dstPtr, kMenuMapSize) != kMenuMapSize) {
-			error("Failed to read '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "Failed to read '%s'\n", _entryName);
 		}
 		if (f.ioErr()) {
-			error("I/O error when reading '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 		}
 		return;
 	} else if (_aba) {
@@ -159,14 +158,14 @@ void Resource::load_MAP_menu(const char *fileName, uint8_t *dstPtr) {
 		uint8_t *dat = _aba->loadEntry(_entryName, &size);
 		if (dat) {
 			if (size != kMenuMapSize) {
-				error("Unexpected size %d for '%s'", size, _entryName);
+				log_cb(RETRO_LOG_ERROR, "Unexpected size %d for '%s'\n", size, _entryName);
 			}
 			memcpy(dstPtr, dat, size);
 			free(dat);
 			return;
 		}
 	}
-	error("Cannot load '%s'", _entryName);
+	log_cb(RETRO_LOG_ERROR, "Cannot load '%s'\n", _entryName);
 }
 
 void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
@@ -175,10 +174,10 @@ void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
 	File f;
 	if (f.open(_entryName, "rb", _fs)) {
 		if (f.read(dstPtr, kMenuPalSize) != kMenuPalSize) {
-			error("Failed to read '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "Failed to read '%s'\n", _entryName);
 		}
 		if (f.ioErr()) {
-			error("I/O error when reading '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 		}
 		return;
 	} else if (_aba) {
@@ -186,14 +185,14 @@ void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
 		uint8_t *dat = _aba->loadEntry(_entryName, &size);
 		if (dat) {
 			if (size != kMenuPalSize) {
-				error("Unexpected size %d for '%s'", size, _entryName);
+				log_cb(RETRO_LOG_ERROR, "Unexpected size %d for '%s'\n", size, _entryName);
 			}
 			memcpy(dstPtr, dat, size);
 			free(dat);
 			return;
 		}
 	}
-	error("Cannot load '%s'", _entryName);
+	log_cb(RETRO_LOG_ERROR, "Cannot load '%s'\n", _entryName);
 }
 
 void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
@@ -204,11 +203,11 @@ void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
 		const int len = f.size();
 		offData = (uint8_t *)malloc(len);
 		if (!offData) {
-			error("Unable to allocate sprite offsets");
+			log_cb(RETRO_LOG_ERROR, "Unable to allocate sprite offsets\n");
 		}
 		f.read(offData, len);
 		if (f.ioErr()) {
-			error("I/O error when reading '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 		}
 	} else if (_aba) {
 		offData = _aba->loadEntry(_entryName, 0);
@@ -229,7 +228,7 @@ void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
 		free(offData);
 		return;
 	}
-	error("Cannot load '%s'", _entryName);
+	log_cb(RETRO_LOG_ERROR, "Cannot load '%s'\n", _entryName);
 }
 
 static const char *getCineName(Language lang) {
@@ -256,18 +255,15 @@ void Resource::load_CINE() {
 		if (f.open(_entryName, "rb", _fs)) {
 			int len = f.size();
 			_cine_off = (uint8_t *)malloc(len);
-			if (!_cine_off) {
-				error("Unable to allocate cinematics offsets");
-			}
 			f.read(_cine_off, len);
 			if (f.ioErr()) {
-				error("I/O error when reading '%s'", _entryName);
+				log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 			}
 		} else if (_aba) {
 			_cine_off = _aba->loadEntry(_entryName, 0);
 		}
 		if (!_cine_off) {
-			error("Cannot load '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "Cannot load '%s'\n", _entryName);
 		}
 	}
 	if (_cine_txt == 0) {
@@ -276,18 +272,15 @@ void Resource::load_CINE() {
 		if (f.open(_entryName, "rb", _fs)) {
 			int len = f.size();
 			_cine_txt = (uint8_t *)malloc(len);
-			if (!_cine_txt) {
-				error("Unable to allocate cinematics text data");
-			}
 			f.read(_cine_txt, len);
 			if (f.ioErr()) {
-				error("I/O error when reading '%s'", _entryName);
+				log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 			}
 		} else if (_aba) {
 			_cine_txt = _aba->loadEntry(_entryName, 0);
 		}
 		if (!_cine_txt) {
-			error("Cannot load '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "Cannot load '%s'\n", _entryName);
 		}
 	}
 }
@@ -464,7 +457,7 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 		loadStub = &Resource::load_SPM;
 		break;
 	default:
-		error("Unimplemented Resource::load() type %d", objType);
+		log_cb(RETRO_LOG_ERROR, "Unimplemented Resource::load() type %d\n", objType);
 		break;
 	}
 	if (ext) {
@@ -475,7 +468,7 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 		assert(loadStub);
 		(this->*loadStub)(&f);
 		if (f.ioErr()) {
-			error("I/O error when reading '%s'", _entryName);
+			log_cb(RETRO_LOG_ERROR, "I/O error when reading '%s'\n", _entryName);
 		}
 	} else {
 		if (_aba) {
@@ -494,7 +487,7 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 					break;
 				case OT_CT:
 					if (!delphine_unpack((uint8_t *)_ctData, dat, size)) {
-						error("Bad CRC for '%s'", _entryName);
+						log_cb(RETRO_LOG_ERROR, "Bad CRC for '%s'\n", _entryName);
 					}
 					free(dat);
 					break;
@@ -504,7 +497,7 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 					break;
 				case OT_RP:
 					if (size != 0x4A) {
-						error("Unexpected size %d for '%s'", size, _entryName);
+						log_cb(RETRO_LOG_ERROR, "Unexpected size %d for '%s'\n", size, _entryName);
 					}
 					memcpy(_rp, dat, size);
 					free(dat);
@@ -536,24 +529,23 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 					_bnq = dat;
 					break;
 				default:
-					error("Cannot load '%s' type %d", _entryName, objType);
+					log_cb(RETRO_LOG_ERROR, "Cannot load '%s' type %d\n", _entryName, objType);
 				}
 				return;
 			}
 		}
-		error("Cannot open '%s'", _entryName);
+		log_cb(RETRO_LOG_ERROR, "Cannot open '%s'\n", _entryName);
 	}
 }
 
 void Resource::load_CT(File *pf) {
 	int len = pf->size();
 	uint8_t *tmp = (uint8_t *)malloc(len);
-	if (!tmp) {
-		error("Unable to allocate CT buffer");
-	} else {
+	if (tmp)
+	{
 		pf->read(tmp, len);
 		if (!delphine_unpack((uint8_t *)_ctData, tmp, len)) {
-			error("Bad CRC for collision data");
+			log_cb(RETRO_LOG_ERROR, "Bad CRC for collision data\n");
 		}
 		free(tmp);
 	}
@@ -562,44 +554,33 @@ void Resource::load_CT(File *pf) {
 void Resource::load_FNT(File *f) {
 	int len = f->size();
 	_fnt = (uint8_t *)malloc(len);
-	if (!_fnt) {
-		error("Unable to allocate FNT buffer");
-	} else {
+	if (_fnt)
 		f->read(_fnt, len);
-	}
 }
 
 void Resource::load_MBK(File *f) {
 	int len = f->size();
 	_mbk = (uint8_t *)malloc(len);
-	if (!_mbk) {
-		error("Unable to allocate MBK buffer");
-	} else {
+	if (_mbk)
 		f->read(_mbk, len);
-	}
 }
 
 void Resource::load_ICN(File *f) {
 	int len = f->size();
-	if (_icnLen == 0) {
+	if (_icnLen == 0)
 		_icn = (uint8_t *)malloc(len);
-	} else {
+	else
 		_icn = (uint8_t *)realloc(_icn, _icnLen + len);
-	}
-	if (!_icn) {
-		error("Unable to allocate ICN buffer");
-	} else {
+	if (_icn)
 		f->read(_icn + _icnLen, len);
-	}
 	_icnLen += len;
 }
 
 void Resource::load_SPR(File *f) {
 	int len = f->size() - 12;
 	_spr1 = (uint8_t *)malloc(len);
-	if (!_spr1) {
-		error("Unable to allocate SPR1 buffer");
-	} else {
+	if (_spr1)
+	{
 		f->seek(12);
 		f->read(_spr1, len);
 	}
@@ -619,9 +600,8 @@ void Resource::load_RP(File *f) {
 void Resource::load_SPC(File *f) {
 	int len = f->size();
 	_spc = (uint8_t *)malloc(len);
-	if (!_spc) {
-		error("Unable to allocate SPC buffer");
-	} else {
+	if (_spc)
+	{
 		f->read(_spc, len);
 		_numSpc = READ_BE_UINT16(_spc) / 2;
 	}
@@ -630,21 +610,15 @@ void Resource::load_SPC(File *f) {
 void Resource::load_PAL(File *f) {
 	int len = f->size();
 	_pal = (uint8_t *)malloc(len);
-	if (!_pal) {
-		error("Unable to allocate PAL buffer");
-	} else {
+	if (_pal)
 		f->read(_pal, len);
-	}
 }
 
 void Resource::load_MAP(File *f) {
 	int len = f->size();
 	_map = (uint8_t *)malloc(len);
-	if (!_map) {
-		error("Unable to allocate MAP buffer");
-	} else {
+	if (_map)
 		f->read(_map, len);
-	}
 }
 
 void Resource::load_OBJ(File *f) {
@@ -671,7 +645,7 @@ void Resource::load_OBJ(File *f) {
 		if (prevOffset != offsets[i]) {
 			ObjectNode *on = (ObjectNode *)malloc(sizeof(ObjectNode));
 			if (!on) {
-				error("Unable to allocate ObjectNode num=%d", i);
+				log_cb(RETRO_LOG_ERROR, "Unable to allocate ObjectNode num=%d\n", i);
 			}
 			f->seek(offsets[i] + 2);
 			on->last_obj_number = f->readUint16LE();
@@ -717,18 +691,18 @@ void Resource::load_OBC(File *f) {
 	const int packedSize = f->readUint32BE();
 	uint8_t *packedData = (uint8_t *)malloc(packedSize);
 	if (!packedData) {
-		error("Unable to allocate OBC temporary buffer 1");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate OBC temporary buffer 1\n");
 	}
 	f->seek(packedSize);
 	const int unpackedSize = f->readUint32BE();
 	uint8_t *tmp = (uint8_t *)malloc(unpackedSize);
 	if (!tmp) {
-		error("Unable to allocate OBC temporary buffer 2");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate OBC temporary buffer 2\n");
 	}
 	f->seek(4);
 	f->read(packedData, packedSize);
 	if (!delphine_unpack(tmp, packedData, packedSize)) {
-		error("Bad CRC for compressed object data");
+		log_cb(RETRO_LOG_ERROR, "Bad CRC for compressed object data\n");
 	}
 	free(packedData);
 	decodeOBJ(tmp, unpackedSize);
@@ -759,7 +733,7 @@ void Resource::decodeOBJ(const uint8_t *tmp, int size) {
 		if (prevOffset != offsets[i]) {
 			ObjectNode *on = (ObjectNode *)malloc(sizeof(ObjectNode));
 			if (!on) {
-				error("Unable to allocate ObjectNode num=%d", i);
+				log_cb(RETRO_LOG_ERROR, "Unable to allocate ObjectNode num=%d\n", i);
 			}
 			const uint8_t *objData = tmp + offsets[i];
 			on->last_obj_number = _readUint16(objData); objData += 2;
@@ -851,43 +825,31 @@ void Resource::decodePGE(const uint8_t *p, int size) {
 void Resource::load_ANI(File *f) {
 	const int size = f->size();
 	_ani = (uint8_t *)malloc(size);
-	if (!_ani) {
-		error("Unable to allocate ANI buffer");
-	} else {
+	if (_ani)
 		f->read(_ani, size);
-	}
 }
 
 void Resource::load_TBN(File *f) {
 	int len = f->size();
 	_tbn = (uint8_t *)malloc(len);
-	if (!_tbn) {
-		error("Unable to allocate TBN buffer");
-	} else {
+	if (_tbn)
 		f->read(_tbn, len);
-	}
 }
 
 void Resource::load_CMD(File *pf) {
 	free(_cmd);
 	int len = pf->size();
 	_cmd = (uint8_t *)malloc(len);
-	if (!_cmd) {
-		error("Unable to allocate CMD buffer");
-	} else {
+	if (_cmd)
 		pf->read(_cmd, len);
-	}
 }
 
 void Resource::load_POL(File *pf) {
 	free(_pol);
 	int len = pf->size();
 	_pol = (uint8_t *)malloc(len);
-	if (!_pol) {
-		error("Unable to allocate POL buffer");
-	} else {
+	if (_pol)
 		pf->read(_pol, len);
-	}
 }
 
 void Resource::load_CMP(File *pf) {
@@ -896,7 +858,7 @@ void Resource::load_CMP(File *pf) {
 	int len = pf->size();
 	uint8_t *tmp = (uint8_t *)malloc(len);
 	if (!tmp) {
-		error("Unable to allocate CMP buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate CMP buffer\n");
 	}
 	pf->read(tmp, len);
 	struct {
@@ -917,21 +879,21 @@ void Resource::load_CMP(File *pf) {
 	}
 	_pol = (uint8_t *)malloc(data[0].size);
 	if (!_pol) {
-		error("Unable to allocate POL buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate POL buffer\n");
 	}
 	if (data[0].packedSize == data[0].size) {
 		memcpy(_pol, tmp + data[0].offset, data[0].packedSize);
 	} else if (!delphine_unpack(_pol, tmp + data[0].offset, data[0].packedSize)) {
-		error("Bad CRC for cutscene polygon data");
+		log_cb(RETRO_LOG_ERROR, "Bad CRC for cutscene polygon data\n");
 	}
 	_cmd = (uint8_t *)malloc(data[1].size);
 	if (!_cmd) {
-		error("Unable to allocate CMD buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate CMD buffer\n");
 	}
 	if (data[1].packedSize == data[1].size) {
 		memcpy(_cmd, tmp + data[1].offset, data[1].packedSize);
 	} else if (!delphine_unpack(_cmd, tmp + data[1].offset, data[1].packedSize)) {
-		error("Bad CRC for cutscene command data");
+		log_cb(RETRO_LOG_ERROR, "Bad CRC for cutscene command data\n");
 	}
 	free(tmp);
 }
@@ -987,7 +949,7 @@ void Resource::load_SPL(File *f) {
 	_numSfx = NUM_SFXS;
 	_sfxList = (SoundFx *)calloc(_numSfx, sizeof(SoundFx));
 	if (!_sfxList) {
-		error("Unable to allocate SoundFx table");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate SoundFx table\n");
 	}
 	int offset = 0;
 	for (int i = 0; i < _numSfx; ++i) {
@@ -1012,19 +974,15 @@ void Resource::load_SPL(File *f) {
 void Resource::load_LEV(File *f) {
 	const int len = f->size();
 	_lev = (uint8_t *)malloc(len);
-	if (!_lev) {
-		error("Unable to allocate LEV buffer");
-	} else {
+	if (_lev)
 		f->read(_lev, len);
-	}
 }
 
 void Resource::load_SGD(File *f) {
 	const int len = f->size();
 	_sgd = (uint8_t *)malloc(len);
-	if (!_sgd) {
-		error("Unable to allocate SGD buffer");
-	} else {
+	if (_sgd)
+	{
 		f->read(_sgd, len);
 		// first byte == number of entries, clear to fix up 32 bits offset
 		_sgd[0] = 0;
@@ -1034,11 +992,8 @@ void Resource::load_SGD(File *f) {
 void Resource::load_BNQ(File *f) {
 	const int len = f->size();
 	_bnq = (uint8_t *)malloc(len);
-	if (!_bnq) {
-		error("Unable to allocate BNQ buffer");
-	} else {
+	if (_bnq)
 		f->read(_bnq, len);
-	}
 }
 
 void Resource::load_SPM(File *f) {
@@ -1049,21 +1004,21 @@ void Resource::load_SPM(File *f) {
 	f->seek(0);
 	uint8_t *tmp = (uint8_t *)malloc(len);
 	if (!tmp) {
-		error("Unable to allocate SPM temporary buffer");
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate SPM temporary buffer\n");
 	}
 	f->read(tmp, len);
 	if (size == kPersoDatSize) {
 		_spr1 = (uint8_t *)malloc(size);
 		if (!_spr1) {
-			error("Unable to allocate SPR1 buffer");
+			log_cb(RETRO_LOG_ERROR, "Unable to allocate SPR1 buffer\n");
 		}
 		if (!delphine_unpack(_spr1, tmp, len)) {
-			error("Bad CRC for SPM data");
+			log_cb(RETRO_LOG_ERROR, "Bad CRC for SPM data\n");
 		}
 	} else {
 		assert(size <= sizeof(_sprm));
 		if (!delphine_unpack(_sprm, tmp, len)) {
-			error("Bad CRC for SPM data");
+			log_cb(RETRO_LOG_ERROR, "Bad CRC for SPM data\n");
 		}
 	}
 	for (int i = 0; i < NUM_SPRITES; ++i) {
@@ -1123,7 +1078,7 @@ uint8_t *Resource::loadBankData(uint16_t num) {
 		assert(dataOffset > 4);
 		assert(size == (int)READ_BE_UINT32(data - 4));
 		if (!delphine_unpack(_bankDataHead, data, 0)) {
-			error("Bad CRC for bank data %d", num);
+			log_cb(RETRO_LOG_ERROR, "Bad CRC for bank data %d\n", num);
 		}
 	}
 	uint8_t *bankData = _bankDataHead;

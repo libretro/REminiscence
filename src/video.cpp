@@ -7,7 +7,6 @@
 #include "resource.h"
 #include "game.h"
 #include "unpack.h"
-#include "util.h"
 #include "video.h"
 
 Video::Video(Resource *res, Game *game)
@@ -133,7 +132,7 @@ static void PC_decodeMapPlane(int sz, const uint8_t *src, uint8_t *dst) {
 void Video::PC_decodeMap(int level, int room) {
 	int32_t off = READ_LE_UINT32(_res->_map + room * 6);
 	if (off == 0) {
-		error("Invalid room %d", room);
+		log_cb(RETRO_LOG_ERROR, "Invalid room %d\n", room);
 	}
 	// int size = READ_LE_UINT16(_res->_map + room * 6 + 4);
 	bool packed = true;
@@ -394,7 +393,7 @@ void Video::AMIGA_decodeLev(int level, int room)
    uint8_t   *tmp   = _res->_scratchBuffer;
    const int offset = READ_BE_UINT32(_res->_lev + room * 4);
    if (!delphine_unpack(tmp, _res->_lev, offset)) {
-      error("Bad CRC for level %d room %d", level, room);
+      log_cb(RETRO_LOG_ERROR, "Bad CRC for level %d room %d\n", level, room);
    }
    uint16_t         offset10     = READ_BE_UINT16(tmp + 10);
    const uint16_t   offset12     = READ_BE_UINT16(tmp + 12);
@@ -402,7 +401,7 @@ void Video::AMIGA_decodeLev(int level, int room)
    static const int kTempMbkSize = 1024;
    uint8_t          *buf         = (uint8_t *) malloc(kTempMbkSize * 32);
    if (!buf) {
-      error("Unable to allocate mbk temporary buffer");
+      log_cb(RETRO_LOG_ERROR, "Unable to allocate mbk temporary buffer\n");
    }
    int sz = 0;
    memset(buf, 0, 32);

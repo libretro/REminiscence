@@ -7,7 +7,6 @@
 #include "file.h"
 #include "mixer.h"
 #include "mod_player.h"
-#include "util.h"
 
 #ifdef USE_MODPLUG
 #include <modplug.h>
@@ -172,7 +171,7 @@ uint16_t ModPlayer_impl::findPeriod(uint16_t period, uint8_t fineTune) const {
 			return fineTune * 36 + p;
 		}
 	}
-	error("Invalid period=%d", period);
+	log_cb(RETRO_LOG_ERROR, "Invalid period=%d\n", period);
 	return 0;
 }
 
@@ -506,7 +505,7 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 			}
 			break;
 		default:
-			warning("Unhandled extended effect 0x%X params=0x%X", effectX, effectY);
+			log_cb(RETRO_LOG_WARN, "Unhandled extended effect 0x%X params=0x%X\n", effectX, effectY);
 			break;
 		}
 		break;
@@ -520,7 +519,7 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 		}
 		break;
 	default:
-		warning("Unhandled effect 0x%X params=0x%X", effectNum, effectXY);
+		log_cb(RETRO_LOG_WARN, "Unhandled effect 0x%X params=0x%X\n", effectNum, effectXY);
 		break;
 	}
 }
@@ -551,7 +550,7 @@ void ModPlayer_impl::handleTick() {
 			if (_currentPatternOrder == 3 && _repeatIntro) {
 				_currentPatternOrder = 1;
 				_repeatIntro = false;
-//				warning("Introduction module synchronization hack");
+//				log_cb(RETRO_LOG_WARN, "Introduction module synchronization hack\n");
 			}
 		}
 	}

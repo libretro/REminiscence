@@ -14,7 +14,6 @@
 #endif
 #include <stdio.h>
 #include "fs.h"
-#include "util.h"
 
 struct FileName {
 	char *name;
