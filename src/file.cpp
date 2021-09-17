@@ -94,7 +94,6 @@ bool File::open(const char *filename, const char *mode, FileSystem *fs) {
 	_impl = new StdioFile;
 	char *path = fs->findPath(filename);
 	if (path) {
-		debug(DBG_FILE, "Open file name '%s' mode '%s' path '%s'", filename, mode, path);
 		bool ret = _impl->open(path, mode);
 		free(path);
 		return ret;
@@ -110,7 +109,6 @@ bool File::open(const char *filename, const char *mode, const char *directory)
 	if (!_impl)
 		_impl = new StdioFile;
 	snprintf(path, sizeof(path), "%s/%s", directory, filename);
-	debug(DBG_FILE, "Open file name '%s' mode '%s' path '%s'", filename, mode, path);
 	return _impl->open(path, mode);
 }
 

@@ -55,7 +55,6 @@ int Game::pge_isInGroup(LivePGE *pge_dst, uint16_t group_id, uint16_t counter) {
 }
 
 void Game::pge_loadForCurrentLevel(uint16_t idx) {
-	debug(DBG_PGE, "Game::pge_loadForCurrentLevel() idx=%d", idx);
 
 	LivePGE *live_pge = &_pgeLive[idx];
 	InitPGE *init_pge = &_res._pgeInit[idx];
@@ -112,7 +111,6 @@ void Game::pge_loadForCurrentLevel(uint16_t idx) {
 }
 
 void Game::pge_process(LivePGE *pge) {
-	debug(DBG_PGE, "Game::pge_process() pge_num=%ld", pge - &_pgeLive[0]);
 	_pge_playAnimSound = true;
 	_pge_currentPiegeFacingDir = (pge->flags & 1) != 0;
 	_pge_currentPiegeRoom = pge->room_location;
@@ -225,7 +223,6 @@ void Game::pge_playAnimSound(LivePGE *pge, uint16_t arg2) {
 }
 
 void Game::pge_setupAnim(LivePGE *pge) {
-	debug(DBG_PGE, "Game::pge_setupAnim() pgeNum=%ld", pge - &_pgeLive[0]);
 	const uint8_t *anim_data = _res.getAniData(pge->obj_type);
 	if (_res._readUint16(anim_data) < pge->anim_seq) {
 		pge->anim_seq = 0;
@@ -253,14 +250,12 @@ void Game::pge_setupAnim(LivePGE *pge) {
 }
 
 int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
-	debug(DBG_PGE, "Game::pge_execute() pge_num=%ld op1=0x%X op2=0x%X op3=0x%X", live_pge - &_pgeLive[0], obj->opcode1, obj->opcode2, obj->opcode3);
 	pge_OpcodeProc op;
 	ObjectOpcodeArgs args;
 	if (obj->opcode1) {
 		args.pge = live_pge;
 		args.a = obj->opcode_arg1;
 		args.b = 0;
-		debug(DBG_PGE, "pge_execute op1=0x%X", obj->opcode1);
 		op = _pge_opcodeTable[obj->opcode1];
 		if (!op) {
 			warning("Game::pge_execute() missing call to pge_opcode 0x%X", obj->opcode1);
@@ -273,7 +268,6 @@ int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
 		args.pge = live_pge;
 		args.a = obj->opcode_arg2;
 		args.b = obj->opcode_arg1;
-		debug(DBG_PGE, "pge_execute op2=0x%X", obj->opcode2);
 		op = _pge_opcodeTable[obj->opcode2];
 		if (!op) {
 			warning("Game::pge_execute() missing call to pge_opcode 0x%X", obj->opcode2);
@@ -286,7 +280,6 @@ int Game::pge_execute(LivePGE *live_pge, InitPGE *init_pge, const Object *obj) {
 		args.pge = live_pge;
 		args.a = obj->opcode_arg3;
 		args.b = 0;
-		debug(DBG_PGE, "pge_execute op3=0x%X", obj->opcode3);
 		op = _pge_opcodeTable[obj->opcode3];
 		if (op) {
 			(this->*op)(&args);
@@ -377,7 +370,6 @@ void Game::pge_setupDefaultAnim(LivePGE *pge) {
 			pge->flags |= 8;
 		}
 		pge->anim_number = _res._readUint16(anim_frame) & 0x7FFF;
-		debug(DBG_PGE, "Game::pge_setupDefaultAnim() pgeNum=%ld pge->flags=0x%X pge->anim_number=0x%X pge->anim_seq=0x%X", pge - &_pgeLive[0], pge->flags, pge->anim_number, pge->anim_seq);
 	}
 }
 
@@ -463,7 +455,6 @@ void Game::pge_setupOtherPieges(LivePGE *pge, InitPGE *init_pge) {
 }
 
 void Game::pge_addToCurrentRoomList(LivePGE *pge, uint8_t room) {
-	debug(DBG_PGE, "Game::pge_addToCurrentRoomList() pgeNum=%ld room=%d", pge - &_pgeLive[0], room);
 	if (room != pge->room_location) {
 		LivePGE *cur_pge = _pge_liveTable1[room];
 		LivePGE *prev_pge = 0;
@@ -2110,7 +2101,6 @@ int Game::pge_ZOrder(LivePGE *pge, int16_t num, pge_ZOrderCallback compare, uint
 }
 
 void Game::pge_updateGroup(uint8_t idx, uint8_t unk1, int16_t unk2) {
-	debug(DBG_GAME, "Game::pge_updateGroup() idx=0x%X unk1=0x%X unk2=0x%X", idx, unk1, unk2);
 	LivePGE *pge = &_pgeLive[unk1];
 	if (!(pge->flags & 4)) {
 		if (!(pge->init_PGE->flags & 1)) {

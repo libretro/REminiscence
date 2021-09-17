@@ -118,7 +118,6 @@ uint16_t Cutscene::findTextSeparators(const uint8_t *p) {
 }
 
 void Cutscene::drawText(int16_t x, int16_t y, const uint8_t *p, uint16_t color, uint8_t *page, uint8_t n) {
-	debug(DBG_CUT, "Cutscene::drawText(x=%d, y=%d, c=%d)", x, y, color);
 	const uint8_t *fnt = (_res->_lang == LANG_JP) ? Video::_font8Jp : _res->_fnt;
 	uint16_t last_sep = 0;
 	if (n != 0) {
@@ -203,7 +202,6 @@ void Cutscene::drawCreditsText() {
 }
 
 void Cutscene::op_markCurPos() {
-	debug(DBG_CUT, "Cutscene::op_markCurPos()");
 	_cmdPtrBak = _cmdPtr;
 	drawCreditsText();
 	_frameDelay = 5;
@@ -213,7 +211,6 @@ void Cutscene::op_markCurPos() {
 }
 
 void Cutscene::op_refreshScreen() {
-	debug(DBG_CUT, "Cutscene::op_refreshScreen()");
 	_clearScreen = fetchNextCmdByte();
 	if (_clearScreen != 0) {
 		swapLayers();
@@ -222,7 +219,6 @@ void Cutscene::op_refreshScreen() {
 }
 
 void Cutscene::op_waitForSync() {
-	debug(DBG_CUT, "Cutscene::op_waitForSync()");
 	if (_creditsSequence) {
 		uint16_t n = fetchNextCmdByte() * 2;
 		do {
@@ -244,7 +240,6 @@ void Cutscene::op_waitForSync() {
 }
 
 void Cutscene::drawShape(const uint8_t *data, int16_t x, int16_t y) {
-	debug(DBG_CUT, "Cutscene::drawShape()");
 	_gfx._layer = _page1;
 	uint8_t numVertices = *data++;
 	if (numVertices & 0x80) {
@@ -287,7 +282,6 @@ void Cutscene::drawShape(const uint8_t *data, int16_t x, int16_t y) {
 }
 
 void Cutscene::op_drawShape() {
-	debug(DBG_CUT, "Cutscene::op_drawShape()");
 
 	int16_t x = 0;
 	int16_t y = 0;
@@ -328,7 +322,6 @@ void Cutscene::op_drawShape() {
 }
 
 void Cutscene::op_setPalette() {
-	debug(DBG_CUT, "Cutscene::op_setPalette()");
 	uint8_t num = fetchNextCmdByte();
 	uint8_t palNum = fetchNextCmdByte();
 	uint16_t off = READ_BE_UINT16(_polPtr + 6);
@@ -341,7 +334,6 @@ void Cutscene::op_setPalette() {
 }
 
 void Cutscene::op_drawStringAtBottom() {
-	debug(DBG_CUT, "Cutscene::op_drawStringAtBottom()");
 	uint16_t strId = fetchNextCmdWord();
 	if (!_creditsSequence) {
 
@@ -368,16 +360,13 @@ void Cutscene::op_drawStringAtBottom() {
 }
 
 void Cutscene::op_nop() {
-	debug(DBG_CUT, "Cutscene::op_nop()");
 }
 
 void Cutscene::op_skip3() {
-	debug(DBG_CUT, "Cutscene::op_skip3()");
 	_cmdPtr += 3;
 }
 
 void Cutscene::op_refreshAll() {
-	debug(DBG_CUT, "Cutscene::op_refreshAll()");
 	_frameDelay = 5;
 	setPalette();
 	swapLayers();
@@ -386,7 +375,6 @@ void Cutscene::op_refreshAll() {
 }
 
 void Cutscene::drawShapeScale(const uint8_t *data, int16_t zoom, int16_t b, int16_t c, int16_t d, int16_t e, int16_t f, int16_t g) {
-	debug(DBG_CUT, "Cutscene::drawShapeScale(%d, %d, %d, %d, %d, %d, %d)", zoom, b, c, d, e, f, g);
 	_gfx._layer = _page1;
 	uint8_t numVertices = *data++;
 	if (numVertices & 0x80) {
@@ -508,7 +496,6 @@ void Cutscene::drawShapeScale(const uint8_t *data, int16_t zoom, int16_t b, int1
 }
 
 void Cutscene::op_drawShapeScale() {
-	debug(DBG_CUT, "Cutscene::op_drawShapeScale()");
 
 	_shape_count = 0;
 
@@ -565,7 +552,6 @@ void Cutscene::op_drawShapeScale() {
 }
 
 void Cutscene::drawShapeScaleRotate(const uint8_t *data, int16_t zoom, int16_t b, int16_t c, int16_t d, int16_t e, int16_t f, int16_t g) {
-	debug(DBG_CUT, "Cutscene::drawShapeScaleRotate(%d, %d, %d, %d, %d, %d, %d)", zoom, b, c, d, e, f, g);
 	_gfx._layer = _page1;
 	uint8_t numVertices = *data++;
 	if (numVertices & 0x80) {
@@ -726,7 +712,6 @@ void Cutscene::drawShapeScaleRotate(const uint8_t *data, int16_t zoom, int16_t b
 }
 
 void Cutscene::op_drawShapeScaleRotate() {
-	debug(DBG_CUT, "Cutscene::op_drawShapeScaleRotate()");
 
 	_shape_count = 0;
 
@@ -786,7 +771,6 @@ void Cutscene::op_drawShapeScaleRotate() {
 }
 
 void Cutscene::op_drawCreditsText() {
-	debug(DBG_CUT, "Cutscene::op_drawCreditsText()");
 	_varText = 0xFF;
 	if (_textCurBuf == _textBuf) {
 		++_creditsTextCounter;
@@ -797,7 +781,6 @@ void Cutscene::op_drawCreditsText() {
 }
 
 void Cutscene::op_drawStringAtPos() {
-	debug(DBG_CUT, "Cutscene::op_drawStringAtPos()");
 	uint16_t strId = fetchNextCmdWord();
 	if (strId != 0xFFFF) {
 		int16_t x = (int8_t)fetchNextCmdByte() * 8;
@@ -822,7 +805,6 @@ void Cutscene::op_drawStringAtPos() {
 }
 
 void Cutscene::op_handleKeys() {
-	debug(DBG_CUT, "Cutscene::op_handleKeys()");
 	while (1) {
 		uint8_t key_mask = fetchNextCmdByte();
 		if (key_mask == 0xFF) {
@@ -903,11 +885,9 @@ void Cutscene::mainLoop(uint16_t offset) {
 	_varKey = 0;
 	_cmdPtr = _cmdPtrBak = p + _startOffset + offset;
 	_polPtr = _res->_pol;
-	debug(DBG_CUT, "_startOffset = %d offset = %d", _startOffset, offset);
 
 	while (!_game->_pi.quit && !_interrupted && !_stop) {
 		uint8_t op = fetchNextCmdByte();
-		debug(DBG_CUT, "Cutscene::play() opcode = 0x%X (%d)", op, (op >> 2));
 		if (op & 0x80) {
 			break;
 		}
@@ -1002,7 +982,6 @@ void Cutscene::playText(const char *str) {
 void Cutscene::play() {
 	if (_id != 0xFFFF) {
 		_textCurBuf = NULL;
-		debug(DBG_CUT, "Cutscene::play() _id=0x%X", _id);
 		_creditsSequence = false;
 		prepare();
 		uint16_t cutName = _offsetsTable[_id * 2 + 0];

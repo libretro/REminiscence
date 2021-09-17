@@ -45,7 +45,6 @@ struct FileSystem_impl {
 
 	void setRootDirectory(const char *dir) {
 		getPathListFromDirectory(dir);
-		debug(DBG_FILE, "Found %d files and %d directories", _filesCount, _dirsCount);
 	}
 
 	int findPathIndex(const char *name) const {

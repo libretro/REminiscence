@@ -133,10 +133,7 @@ static int detectVersion(FileSystem *fs)
    {
       File f;
       if (f.open(table[i].filename, "rb", fs))
-      {
-         debug(DBG_INFO, "Detected %s version", table[i].name);
          return table[i].type;
-      }
    }
    return -1;
 }

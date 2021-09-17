@@ -91,7 +91,6 @@ void Resource::load_DEM(const char *filename) {
 }
 
 void Resource::load_FIB(const char *fileName) {
-	debug(DBG_RES, "Resource::load_FIB('%s')", fileName);
 	static const uint8_t fibonacciTable[] = {
 		0xDE, 0xEB, 0xF3, 0xF8, 0xFB, 0xFD, 0xFE, 0xFF,
 		0x00, 0x01, 0x02, 0x03, 0x05, 0x08, 0x0D, 0x15
@@ -144,7 +143,6 @@ void Resource::load_FIB(const char *fileName) {
 }
 
 void Resource::load_MAP_menu(const char *fileName, uint8_t *dstPtr) {
-	debug(DBG_RES, "Resource::load_MAP_menu('%s')", fileName);
 	static const int kMenuMapSize = 0x3800 * 4;
 	snprintf(_entryName, sizeof(_entryName), "%s.MAP", fileName);
 	File f;
@@ -172,7 +170,6 @@ void Resource::load_MAP_menu(const char *fileName, uint8_t *dstPtr) {
 }
 
 void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
-	debug(DBG_RES, "Resource::load_PAL_menu('%s')", fileName);
 	static const int kMenuPalSize = 768;
 	snprintf(_entryName, sizeof(_entryName), "%s.PAL", fileName);
 	File f;
@@ -200,7 +197,6 @@ void Resource::load_PAL_menu(const char *fileName, uint8_t *dstPtr) {
 }
 
 void Resource::load_SPR_OFF(const char *fileName, uint8_t *sprData) {
-	debug(DBG_RES, "Resource::load_SPR_OFF('%s')", fileName);
 	snprintf(_entryName, sizeof(_entryName), "%s.OFF", fileName);
 	uint8_t *offData = 0;
 	File f;
@@ -254,7 +250,6 @@ static const char *getCineName(Language lang) {
 
 void Resource::load_CINE() {
 	const char *prefix = getCineName(_lang);
-	debug(DBG_RES, "Resource::load_CINE('%s')", prefix);
 	if (_cine_off == 0) {
 		snprintf(_entryName, sizeof(_entryName), "%sCINE.BIN", prefix);
 		File f;
@@ -367,7 +362,6 @@ static const char *getTextBin(Language lang) {
 }
 
 void Resource::load(const char *objName, int objType, const char *ext) {
-	debug(DBG_RES, "Resource::load('%s', %d)", objName, objType);
 	LoadStub loadStub = 0;
 	switch (objType) {
 	case OT_MBK:
@@ -552,7 +546,6 @@ void Resource::load(const char *objName, int objType, const char *ext) {
 }
 
 void Resource::load_CT(File *pf) {
-	debug(DBG_RES, "Resource::load_CT()");
 	int len = pf->size();
 	uint8_t *tmp = (uint8_t *)malloc(len);
 	if (!tmp) {
@@ -567,7 +560,6 @@ void Resource::load_CT(File *pf) {
 }
 
 void Resource::load_FNT(File *f) {
-	debug(DBG_RES, "Resource::load_FNT()");
 	int len = f->size();
 	_fnt = (uint8_t *)malloc(len);
 	if (!_fnt) {
@@ -578,7 +570,6 @@ void Resource::load_FNT(File *f) {
 }
 
 void Resource::load_MBK(File *f) {
-	debug(DBG_RES, "Resource::load_MBK()");
 	int len = f->size();
 	_mbk = (uint8_t *)malloc(len);
 	if (!_mbk) {
@@ -589,7 +580,6 @@ void Resource::load_MBK(File *f) {
 }
 
 void Resource::load_ICN(File *f) {
-	debug(DBG_RES, "Resource::load_ICN()");
 	int len = f->size();
 	if (_icnLen == 0) {
 		_icn = (uint8_t *)malloc(len);
@@ -605,7 +595,6 @@ void Resource::load_ICN(File *f) {
 }
 
 void Resource::load_SPR(File *f) {
-	debug(DBG_RES, "Resource::load_SPR()");
 	int len = f->size() - 12;
 	_spr1 = (uint8_t *)malloc(len);
 	if (!_spr1) {
@@ -617,7 +606,6 @@ void Resource::load_SPR(File *f) {
 }
 
 void Resource::load_SPRM(File *f) {
-	debug(DBG_RES, "Resource::load_SPRM()");
 	const uint32_t len = f->size() - 12;
 	assert(len <= sizeof(_sprm));
 	f->seek(12);
@@ -625,12 +613,10 @@ void Resource::load_SPRM(File *f) {
 }
 
 void Resource::load_RP(File *f) {
-	debug(DBG_RES, "Resource::load_RP()");
 	f->read(_rp, 0x4A);
 }
 
 void Resource::load_SPC(File *f) {
-	debug(DBG_RES, "Resource::load_SPC()");
 	int len = f->size();
 	_spc = (uint8_t *)malloc(len);
 	if (!_spc) {
@@ -642,7 +628,6 @@ void Resource::load_SPC(File *f) {
 }
 
 void Resource::load_PAL(File *f) {
-	debug(DBG_RES, "Resource::load_PAL()");
 	int len = f->size();
 	_pal = (uint8_t *)malloc(len);
 	if (!_pal) {
@@ -653,7 +638,6 @@ void Resource::load_PAL(File *f) {
 }
 
 void Resource::load_MAP(File *f) {
-	debug(DBG_RES, "Resource::load_MAP()");
 	int len = f->size();
 	_map = (uint8_t *)malloc(len);
 	if (!_map) {
@@ -664,7 +648,6 @@ void Resource::load_MAP(File *f) {
 }
 
 void Resource::load_OBJ(File *f) {
-	debug(DBG_RES, "Resource::load_OBJ()");
 	_numObjectNodes = f->readUint16LE();
 	assert(_numObjectNodes < 255);
 	uint32_t offsets[256];
@@ -678,7 +661,6 @@ void Resource::load_OBJ(File *f) {
 		int diff = offsets[i + 1] - offsets[i];
 		if (diff != 0) {
 			objectsCount[numObjectsCount] = (diff - 2) / 0x12;
-			debug(DBG_RES, "i=%d objectsCount[numObjectsCount]=%d", i, objectsCount[numObjectsCount]);
 			++numObjectsCount;
 		}
 	}
@@ -694,7 +676,6 @@ void Resource::load_OBJ(File *f) {
 			f->seek(offsets[i] + 2);
 			on->last_obj_number = f->readUint16LE();
 			on->num_objects = objectsCount[iObj];
-			debug(DBG_RES, "last=%d num=%d", on->last_obj_number, on->num_objects);
 			on->objects = (Object *)malloc(sizeof(Object) * on->num_objects);
 			for (int j = 0; j < on->num_objects; ++j) {
 				Object *obj = &on->objects[j];
@@ -710,7 +691,6 @@ void Resource::load_OBJ(File *f) {
 				obj->opcode_arg1 = f->readUint16LE();
 				obj->opcode_arg2 = f->readUint16LE();
 				obj->opcode_arg3 = f->readUint16LE();
-				debug(DBG_RES, "obj_node=%d obj=%d op1=0x%X op2=0x%X op3=0x%X", i, j, obj->opcode2, obj->opcode1, obj->opcode3);
 			}
 			++iObj;
 			prevOffset = offsets[i];
@@ -721,7 +701,6 @@ void Resource::load_OBJ(File *f) {
 }
 
 void Resource::free_OBJ() {
-	debug(DBG_RES, "Resource::free_OBJ()");
 	ObjectNode *prevNode = 0;
 	for (int i = 0; i < _numObjectNodes; ++i) {
 		if (_objectNodesMap[i] != prevNode) {
@@ -800,7 +779,6 @@ void Resource::decodeOBJ(const uint8_t *tmp, int size) {
 				obj->opcode_arg1 = _readUint16(objData); objData += 2;
 				obj->opcode_arg2 = _readUint16(objData); objData += 2;
 				obj->opcode_arg3 = _readUint16(objData); objData += 2;
-				debug(DBG_RES, "obj_node=%d obj=%d op1=0x%X op2=0x%X op3=0x%X", i, j, obj->opcode2, obj->opcode1, obj->opcode3);
 			}
 			++iObj;
 			prevOffset = offsets[i];
@@ -811,10 +789,8 @@ void Resource::decodeOBJ(const uint8_t *tmp, int size) {
 }
 
 void Resource::load_PGE(File *f) {
-	debug(DBG_RES, "Resource::load_PGE()");
 	_pgeNum = f->readUint16LE();
 	memset(_pgeInit, 0, sizeof(_pgeInit));
-	debug(DBG_RES, "_pgeNum=%d", _pgeNum);
 	assert(_pgeNum <= ARRAY_SIZE(_pgeInit));
 	for (uint16_t i = 0; i < _pgeNum; ++i) {
 		InitPGE *pge = &_pgeInit[i];
@@ -845,7 +821,6 @@ void Resource::load_PGE(File *f) {
 void Resource::decodePGE(const uint8_t *p, int size) {
 	_pgeNum = _readUint16(p); p += 2;
 	memset(_pgeInit, 0, sizeof(_pgeInit));
-	debug(DBG_RES, "len=%d _pgeNum=%d", size, _pgeNum);
 	assert(_pgeNum <= ARRAY_SIZE(_pgeInit));
 	for (uint16_t i = 0; i < _pgeNum; ++i) {
 		InitPGE *pge = &_pgeInit[i];
@@ -874,7 +849,6 @@ void Resource::decodePGE(const uint8_t *p, int size) {
 }
 
 void Resource::load_ANI(File *f) {
-	debug(DBG_RES, "Resource::load_ANI()");
 	const int size = f->size();
 	_ani = (uint8_t *)malloc(size);
 	if (!_ani) {
@@ -885,7 +859,6 @@ void Resource::load_ANI(File *f) {
 }
 
 void Resource::load_TBN(File *f) {
-	debug(DBG_RES, "Resource::load_TBN()");
 	int len = f->size();
 	_tbn = (uint8_t *)malloc(len);
 	if (!_tbn) {
@@ -896,7 +869,6 @@ void Resource::load_TBN(File *f) {
 }
 
 void Resource::load_CMD(File *pf) {
-	debug(DBG_RES, "Resource::load_CMD()");
 	free(_cmd);
 	int len = pf->size();
 	_cmd = (uint8_t *)malloc(len);
@@ -908,7 +880,6 @@ void Resource::load_CMD(File *pf) {
 }
 
 void Resource::load_POL(File *pf) {
-	debug(DBG_RES, "Resource::load_POL()");
 	free(_pol);
 	int len = pf->size();
 	_pol = (uint8_t *)malloc(len);
@@ -1024,7 +995,6 @@ void Resource::load_SPL(File *f) {
 		if ((size & 0x8000) != 0) {
 			continue;
 		}
-		debug(DBG_RES, "sfx=%d size=%d", i, size);
 		assert(size != 0 && (size & 1) == 0);
 		if (i != 64) {
 			_sfxList[i].offset = offset;

@@ -13,7 +13,6 @@ SfxPlayer::SfxPlayer(Mixer *mixer)
 }
 
 void SfxPlayer::play(uint8_t num) {
-	debug(DBG_SFX, "SfxPlayer::play(%d)", num);
 	if (!_playing) {
 		if (num >= 68 && num <= 75) {
 			static const Module *modTable[] = {
@@ -64,7 +63,6 @@ void SfxPlayer::handleTick() {
 		}
 	} else {
 		_orderDelay = READ_BE_UINT16(_mod->moduleData + 2);
-		debug(DBG_SFX, "curOrder=%d/%d _orderDelay=%d\n", _curOrder, _numOrders, _orderDelay);
 		int16_t period = 0;
 		for (int ch = 0; ch < 3; ++ch) {
 			const uint8_t *sampleData = 0;
@@ -90,7 +88,6 @@ void SfxPlayer::handleTick() {
 		}
 		++_curOrder;
 		if (_curOrder >= _numOrders) {
-			debug(DBG_SFX, "End of song");
 			_orderDelay += 20;
 			_modData = 0;
 		}

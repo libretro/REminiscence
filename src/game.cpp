@@ -52,7 +52,7 @@ static void game_thread() {
 	Game::instance->run();
 	Game::instance->running = false;
 	while (true) {
-		debug(DBG_INFO, "Running dead emulator\n");
+		/* Running dead emulator */
 		Game::instance->yield();
 	}
 }
@@ -103,7 +103,6 @@ void Game::run() {
 			if (_menu._selectedOption == Menu::MENU_OPTION_ITEM_DEMO) {
 				_demoBin = (_demoBin + 1) % ARRAY_SIZE(_demoInputs);
 				const char *fn = _demoInputs[_demoBin].name;
-				debug(DBG_DEMO, "Loading inputs from '%s'", fn);
 				_res.load_DEM(fn);
 				if (_res._demLen == 0) {
 					continue;
@@ -141,7 +140,6 @@ void Game::run() {
 			while (!_pi.quit && !_endLoop) {
 				mainLoop();
 				if (_demoBin != -1 && _inp_demPos >= _res._demLen) {
-					debug(DBG_DEMO, "End of demo");
 					// exit level
 					_demoBin = -1;
 					_endLoop = true;
@@ -409,7 +407,6 @@ void Game::inp_handleSpecialKeys() {
 		int8_t slot = _stateSlot + _pi.stateSlot;
 		if (slot >= 1 && slot < 100) {
 			_stateSlot = slot;
-			debug(DBG_INFO, "Current game state slot is %d", _stateSlot);
 		}
 		_pi.stateSlot = 0;
 	}
@@ -793,8 +790,6 @@ void Game::prepareAnims() {
 }
 
 void Game::prepareAnimsHelper(LivePGE *pge, int16_t dx, int16_t dy) {
-	debug(DBG_GAME, "Game::prepareAnimsHelper() dx=0x%X dy=0x%X pge_num=%ld pge->flags=0x%X pge->anim_number=0x%X", dx,
-	      dy, pge - &_pgeLive[0], pge->flags, pge->anim_number);
 	if (!(pge->flags & 8)) {
 		if (pge->index != 0 && loadMonsterSprites(pge) == 0) {
 			return;
@@ -849,7 +844,6 @@ void Game::prepareAnimsHelper(LivePGE *pge, int16_t dx, int16_t dy) {
 }
 
 void Game::drawAnims() {
-	debug(DBG_GAME, "Game::drawAnims()");
 	_eraseBackground = false;
 	drawAnimBuffer(2, _animBuffer2State);
 	drawAnimBuffer(1, _animBuffer1State);
@@ -859,7 +853,6 @@ void Game::drawAnims() {
 }
 
 void Game::drawAnimBuffer(uint8_t stateNum, AnimBufferState *state) {
-	debug(DBG_GAME, "Game::drawAnimBuffer() state=%d", stateNum);
 	assert(stateNum < 4);
 	_animBuffers._states[stateNum] = state;
 	uint8_t lastPos = _animBuffers._curPos[stateNum];
@@ -888,8 +881,6 @@ void Game::drawAnimBuffer(uint8_t stateNum, AnimBufferState *state) {
 }
 
 void Game::drawObject(const uint8_t *dataPtr, int16_t x, int16_t y, uint8_t flags) {
-	debug(DBG_GAME, "Game::drawObject() dataPtr[]=0x%X dx=%d dy=%d", dataPtr[0], (int8_t) dataPtr[1],
-	      (int8_t) dataPtr[2]);
 	assert(dataPtr[0] < 0x4A);
 	uint8_t slot  = _res._rp[dataPtr[0]];
 	uint8_t *data = _res.findBankData(slot);
@@ -913,7 +904,6 @@ void Game::drawObject(const uint8_t *dataPtr, int16_t x, int16_t y, uint8_t flag
 }
 
 void Game::drawObjectFrame(const uint8_t *bankDataPtr, const uint8_t *dataPtr, int16_t x, int16_t y, uint8_t flags) {
-	debug(DBG_GAME, "Game::drawObjectFrame(%p, %d, %d, 0x%X)", dataPtr, x, y, flags);
 	const uint8_t *src = bankDataPtr + dataPtr[0] * 32;
 
 	int16_t sprite_y = y + dataPtr[2];
@@ -1041,7 +1031,6 @@ void Game::decodeCharacterFrame(const uint8_t *dataPtr, uint8_t *dstPtr) {
 }
 
 void Game::drawCharacter(const uint8_t *dataPtr, int16_t pos_x, int16_t pos_y, uint8_t a, uint8_t b, uint8_t flags) {
-	debug(DBG_GAME, "Game::drawCharacter(%p, %d, %d, 0x%X, 0x%X, 0x%X)", dataPtr, pos_x, pos_y, a, b, flags);
 	bool var16 = false; // sprite_mirror_y
 	if (b & 0x40) {
 		b &= 0xBF;
@@ -1126,8 +1115,6 @@ void Game::drawCharacter(const uint8_t *dataPtr, int16_t pos_x, int16_t pos_y, u
 	uint32_t dst_offset      = 256 * pos_y + pos_x;
 	uint8_t  sprite_col_mask = ((flags & 0x60) == 0x60) ? 0x50 : 0x40;
 
-	debug(DBG_GAME, "dst_offset=0x%X src_offset=%ld", dst_offset, src - dataPtr);
-
 	if (!(flags & 2)) {
 		if (var16) {
 			_vid.drawSpriteSub5(src, _vid._frontLayer + dst_offset, sprite_h, sprite_clipped_h, sprite_clipped_w,
@@ -1148,7 +1135,6 @@ void Game::drawCharacter(const uint8_t *dataPtr, int16_t pos_x, int16_t pos_y, u
 }
 
 int Game::loadMonsterSprites(LivePGE *pge) {
-	debug(DBG_GAME, "Game::loadMonsterSprites()");
 	InitPGE *init_pge = pge->init_PGE;
 	if (init_pge->obj_node_number != 0x49 && init_pge->object_type != 10) {
 		return 0xFFFF;
@@ -1188,7 +1174,6 @@ bool Game::hasLevelMap(int level, int room) const {
 }
 
 void Game::loadLevelMap() {
-	debug(DBG_GAME, "Game::loadLevelMap() room=%d", _currentRoom);
 	_currentIcon = 0xFF;
 	if (_res._map) {
 		_vid.PC_decodeMap(_currentLevel, _currentRoom);
@@ -1462,7 +1447,6 @@ bool Game::saveGameState(uint8_t slot) {
 		if (f.ioErr()) {
 			warning("I/O error when saving game state");
 		} else {
-			debug(DBG_INFO, "Saved state to slot %d", slot);
 			success = true;
 		}
 	}
@@ -1551,7 +1535,6 @@ bool Game::loadGameState(uint8_t slot) {
 				if (f.ioErr()) {
 					warning("I/O error when loading game state");
 				} else {
-					debug(DBG_INFO, "Loaded state from slot %d", slot);
 					success = true;
 				}
 			}
@@ -1641,7 +1624,6 @@ void Game::loadState(File *f) {
 
 void AnimBuffers::addState(uint8_t stateNum, int16_t x, int16_t y, const uint8_t *dataPtr, LivePGE *pge, uint8_t w,
                            uint8_t h) {
-	debug(DBG_GAME, "AnimBuffers::addState() stateNum=%d x=%d y=%d dataPtr=%p pge=%p", stateNum, x, y, dataPtr, pge);
 	assert(stateNum < 4);
 	AnimBufferState *state = _states[stateNum];
 	state->x       = x;

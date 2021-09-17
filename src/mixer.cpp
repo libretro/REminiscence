@@ -36,7 +36,6 @@ void Mixer::free()
 
 void Mixer::setPremixHook(PremixHook premixHook, void *userData)
 {
-	debug(DBG_SND, "Mixer::setPremixHook()");
 	_premixHook = premixHook;
 	_premixHookData = userData;
 }
@@ -45,8 +44,6 @@ void Mixer::play(const MixerChunk *mc, uint16_t freq, uint8_t volume)
 {
    unsigned i;
    MixerChannel *ch = NULL;
-
-   debug(DBG_SND, "Mixer::play(%d, %d)", freq, volume);
 
    for (i = 0; i < NUM_CHANNELS; ++i)
    {
@@ -79,15 +76,13 @@ void Mixer::play(const MixerChunk *mc, uint16_t freq, uint8_t volume)
 bool Mixer::isPlaying(const MixerChunk *mc) const
 {
    unsigned i;
-	debug(DBG_SND, "Mixer::isPlaying");
-
-	for (i = 0; i < NUM_CHANNELS; ++i)
+   for (i = 0; i < NUM_CHANNELS; ++i)
    {
-		const MixerChannel *ch = &_channels[i];
-		if (ch->active && ch->chunk.data == mc->data)
-			return true;
-	}
-	return false;
+	   const MixerChannel *ch = &_channels[i];
+	   if (ch->active && ch->chunk.data == mc->data)
+		   return true;
+   }
+   return false;
 }
 
 uint32_t Mixer::getSampleRate() const {
@@ -97,7 +92,6 @@ uint32_t Mixer::getSampleRate() const {
 void Mixer::stopAll() {
    unsigned i;
 
-   debug(DBG_SND, "Mixer::stopAll()");
    for (i = 0; i < NUM_CHANNELS; ++i)
       _channels[i].active = false;
 }
@@ -109,17 +103,16 @@ static bool isMusicSfx(int num)
 
 void Mixer::playMusic(int num)
 {
-	debug(DBG_SND, "Mixer::playMusic(%d)", num);
 	if (isMusicSfx(num))
-   {
-      /* level action sequence */
-      _sfx.play(num);
-      if (_sfx._playing)
-         _musicType = MT_SFX;
-   }
-   else
-   {
-      /* cutscene */
+	{
+		/* level action sequence */
+		_sfx.play(num);
+		if (_sfx._playing)
+			_musicType = MT_SFX;
+	}
+	else
+	{
+		/* cutscene */
 		_mod.play(num);
 		if (_mod._playing)
 			_musicType = MT_MOD;
@@ -128,7 +121,6 @@ void Mixer::playMusic(int num)
 
 void Mixer::stopMusic()
 {
-   debug(DBG_SND, "Mixer::stopMusic()");
    switch (_musicType)
    {
       case MT_NONE:

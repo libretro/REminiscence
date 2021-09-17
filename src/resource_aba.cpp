@@ -35,7 +35,6 @@ void ResourceAba::readEntries()
          _entries[i].offset = _f.readUint32BE();
          _entries[i].compressedSize = _f.readUint32BE();
          _entries[i].size = _f.readUint32BE();
-         debug(DBG_RES, "'%s' offset 0x%X size %d/%d", _entries[i].name,  _entries[i].offset, _entries[i].compressedSize, _entries[i].size);
          if (i != 0) {
             assert(nextOffset == _entries[i].offset);
          }

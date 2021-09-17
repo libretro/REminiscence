@@ -183,7 +183,6 @@ void ModPlayer_impl::init(const int rate) {
 bool ModPlayer_impl::load(File *f) {
 	f->read(_modInfo.songName, 20);
 	_modInfo.songName[20] = 0;
-	debug(DBG_MOD, "songName = '%s'", _modInfo.songName);
 
 	for (int s = 0; s < NUM_SAMPLES; ++s) {
 		SampleInfo *si = &_modInfo.samples[s];
@@ -196,7 +195,6 @@ bool ModPlayer_impl::load(File *f) {
 		si->repeatLen = f->readUint16BE() * 2;
 		si->data = 0;
 		assert(si->len == 0 || si->repeatPos + si->repeatLen <= si->len);
-		debug(DBG_MOD, "sample=%d name='%s' len=%d vol=%d", s, si->name, si->len, si->volume);
 	}
 	_modInfo.numPatterns = f->readByte();
 	assert(_modInfo.numPatterns < NUM_PATTERNS);
@@ -210,7 +208,6 @@ bool ModPlayer_impl::load(File *f) {
 			n = MAX(n, _modInfo.patternOrderTable[i]);
 		}
 	}
-	debug(DBG_MOD, "numPatterns=%d",n + 1);
 	n = (n + 1) * 64 * 4 * 4; // 64 lines of 4 notes per channel
 	_modInfo.patternsTable = (uint8_t *)malloc(n);
 	assert(_modInfo.patternsTable);
@@ -258,7 +255,6 @@ void ModPlayer_impl::handleNote(int trackNum, uint32_t noteData) {
 	uint16_t sampleNum = ((noteData >> 24) & 0xF0) | ((noteData >> 12) & 0xF);
 	uint16_t samplePeriod = (noteData >> 16) & 0xFFF;
 	uint16_t effectData = noteData & 0xFFF;
-	debug(DBG_MOD, "ModPlayer::handleNote(%d) p=%d/%d sampleNumber=0x%X samplePeriod=0x%X effectData=0x%X tk->period=%d", trackNum, _currentPatternPos, _currentPatternOrder, sampleNum, samplePeriod, effectData, tk->period);
 	if (sampleNum != 0) {
 		tk->sample = &_modInfo.samples[sampleNum - 1];
 		tk->volume = tk->sample->volume;
@@ -280,7 +276,6 @@ void ModPlayer_impl::handleNote(int trackNum, uint32_t noteData) {
 }
 
 void ModPlayer_impl::applyVolumeSlide(int trackNum, int amount) {
-	debug(DBG_MOD, "ModPlayer::applyVolumeSlide(%d, %d)", trackNum, amount);
 	Track *tk = &_tracks[trackNum];
 	int vol = tk->volume + amount;
 	if (vol < 0) {
@@ -298,7 +293,6 @@ void ModPlayer_impl::applyVibrato(int trackNum) {
 	   0,  -24,  -49,  -74,  -97, -120,  115,   95,   76,   59,   44,   32,   21,   12,    6,    3,
 	   1,    3,    6,   12,   21,   32,   44,   59,   76,   95,  115, -120,  -97,  -74,  -49,  -24
 	};
-	debug(DBG_MOD, "ModPlayer::applyVibrato(%d)", trackNum);
 	Track *tk = &_tracks[trackNum];
 	int vib = tk->vibratoAmp * sineWaveTable[tk->vibratoPos] / 128;
 	if (tk->period + vib != 0) {
@@ -311,7 +305,6 @@ void ModPlayer_impl::applyVibrato(int trackNum) {
 }
 
 void ModPlayer_impl::applyPortamento(int trackNum) {
-	debug(DBG_MOD, "ModPlayer::applyPortamento(%d)", trackNum);
 	Track *tk = &_tracks[trackNum];
 	if (tk->period < tk->portamento) {
 		tk->period = MIN(tk->period + tk->portamentoSpeed, tk->portamento);
@@ -329,7 +322,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 	uint8_t effectXY = tk->effectData & 0xFF;
 	uint8_t effectX = effectXY >> 4;
 	uint8_t effectY = effectXY & 0xF;
-	debug(DBG_MOD, "ModPlayer::handleEffect(%d) effectNum=0x%X effectXY=0x%X", trackNum, effectNum, effectXY);
 	switch (effectNum) {
 	case 0x0: // arpeggio
 		if (tick && effectXY != 0) {
@@ -424,7 +416,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 			_currentPatternPos = effectX * 10 + effectY;
 			assert(_currentPatternPos < 64);
 			++_currentPatternOrder;
-			debug(DBG_MOD, "_currentPatternPos = %d _currentPatternOrder = %d", _currentPatternPos, _currentPatternOrder);
 		}
 		break;
 	case 0xE: // extended effects
@@ -453,7 +444,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 			if (!tick) {
 				if (effectY == 0) {
 					_patternLoopPos = _currentPatternPos | (_currentPatternOrder << 8);
-					debug(DBG_MOD, "_patternLoopPos=%d/%d", _currentPatternPos, _currentPatternOrder);
 				} else {
 					if (_patternLoopCount == -1) {
 						_patternLoopCount = effectY;
@@ -468,7 +458,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 							_patternLoopCount = -1;
 						}
 					}
-					debug(DBG_MOD, "_patternLoopCount=%d", _patternLoopCount);
 				}
 			}
 			break;
@@ -479,7 +468,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 				if (tk->retriggerCounter == 0) {
 					tk->pos = 0;
 					tk->retriggerCounter = effectY;
-					debug(DBG_MOD, "retrigger sample=%d _songSpeed=%d", effectY, _songSpeed);
 				}
 				--tk->retriggerCounter;
 			}
@@ -514,7 +502,6 @@ void ModPlayer_impl::handleEffect(int trackNum, bool tick) {
 			break;
 		case 0xE: // delay pattern
 			if (!tick) {
-				debug(DBG_MOD, "ModPlayer::handleEffect() _currentTick=%d delay pattern=%d", _currentTick, effectY);
 				_patternDelay = effectY;
 			}
 			break;
@@ -547,7 +534,6 @@ void ModPlayer_impl::handleTick() {
 //		return;
 //	}
 	if (_currentTick == 0) {
-		debug(DBG_MOD, "_currentPatternOrder=%d _currentPatternPos=%d", _currentPatternOrder, _currentPatternPos);
 		uint8_t currentPattern = _modInfo.patternOrderTable[_currentPatternOrder];
 		const uint8_t *p = _modInfo.patternsTable + (currentPattern * 64 + _currentPatternPos) * 16;
 		for (int i = 0; i < NUM_TRACKS; ++i) {
@@ -559,7 +545,6 @@ void ModPlayer_impl::handleTick() {
 		if (_currentPatternPos == 64) {
 			++_currentPatternOrder;
 			_currentPatternPos = 0;
-			debug(DBG_MOD, "ModPlayer::handleTick() _currentPatternOrder = %d/%d", _currentPatternOrder, _modInfo.numPatterns);
 			// On the amiga version, the introduction cutscene is shorter than the PC version ;
 			// so the music module doesn't synchronize at all with the PC datafiles, here we
 			// add a hack to let the music play longer
@@ -578,7 +563,6 @@ void ModPlayer_impl::handleTick() {
 		_currentTick = 0;
 	}
 	if (_currentPatternOrder == _modInfo.numPatterns) {
-		debug(DBG_MOD, "ModPlayer::handleEffect() _currentPatternOrder == _modInfo.numPatterns");
 //		_playing = false;
 		_currentPatternOrder = 0;
 	}

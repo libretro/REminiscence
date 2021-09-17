@@ -40,7 +40,6 @@ void Game::col_clearState() {
 }
 
 void Game::col_preparePiegeState(LivePGE *pge) {
-	debug(DBG_COL, "Game::col_preparePiegeState() pge_num=%ld", pge - &_pgeLive[0]);
 	CollisionSlot *ct_slot1, *ct_slot2;
 	if (pge->init_PGE->unk1C == 0) {
 		pge->collision_slot = 0xFF;
@@ -224,7 +223,6 @@ uint8_t Game::col_findCurrentCollidingObject(LivePGE *pge, uint8_t n1, uint8_t n
 }
 
 int16_t Game::col_detectHit(LivePGE *pge, int16_t arg2, int16_t arg4, col_Callback1 callback1, col_Callback2 callback2, int16_t argA, int16_t argC) {
-	debug(DBG_COL, "col_detectHit()");
 	int16_t pos_dx, pos_dy, var8, varA;
 	int16_t collision_score = 0;
 	int8_t pge_room = pge->room_location;

@@ -17,7 +17,6 @@ Menu::Menu(Resource *res, Game *stub, Video *vid)
 }
 
 void Menu::drawString(const char *str, int16_t y, int16_t x, uint8_t color) {
-	debug(DBG_MENU, "Menu::drawString()");
 	uint8_t v1b = _vid->_charFrontColor;
 	uint8_t v2b = _vid->_charTransparentColor;
 	uint8_t v3b = _vid->_charShadowColor;
@@ -62,7 +61,6 @@ void Menu::drawString(const char *str, int16_t y, int16_t x, uint8_t color) {
 }
 
 void Menu::drawString2(const char *str, int16_t y, int16_t x) {
-	debug(DBG_MENU, "Menu::drawString2()");
 	int i = 0;
 	for (; str[i]; ++i) {
 		_vid->PC_drawChar((uint8_t) str[i], y, x + i, true);
@@ -70,7 +68,6 @@ void Menu::drawString2(const char *str, int16_t y, int16_t x) {
 }
 
 void Menu::loadPicture(const char *prefix) {
-	debug(DBG_MENU, "Menu::loadPicture('%s')", prefix);
 	_res->load_MAP_menu(prefix, _res->_scratchBuffer);
 	for (int i = 0; i < 4; ++i) {
 		for (int y = 0; y < 224; ++y) {
@@ -84,7 +81,6 @@ void Menu::loadPicture(const char *prefix) {
 }
 
 void Menu::handleInfoScreen() {
-	debug(DBG_MENU, "Menu::handleInfoScreen()");
 	_vid->fadeOut();
 	if (_res->_lang == LANG_FR) {
 		loadPicture("instru_f");
@@ -107,7 +103,6 @@ void Menu::handleInfoScreen() {
 }
 
 void Menu::handleSkillScreen() {
-	debug(DBG_MENU, "Menu::handleSkillScreen()");
 	static const uint8_t colors[3][3] = {
 		{2, 3, 3}, // easy
 		{3, 2, 3}, // normal
@@ -156,7 +151,6 @@ void Menu::handleSkillScreen() {
 }
 
 bool Menu::handlePasswordScreen() {
-	debug(DBG_MENU, "Menu::handlePasswordScreen()");
 	_vid->fadeOut();
 	_vid->_charShadowColor = _charVar1;
 	_vid->_charTransparentColor = 0xFF;
@@ -218,7 +212,6 @@ bool Menu::handlePasswordScreen() {
 }
 
 bool Menu::handleLevelScreen() {
-	debug(DBG_MENU, "Menu::handleLevelScreen()");
 	_vid->fadeOut();
 	loadPicture("menu2");
 	int currentSkill = _skill;
@@ -292,7 +285,6 @@ bool Menu::handleLevelScreen() {
 }
 
 void Menu::handleTitleScreen() {
-	debug(DBG_MENU, "Menu::handleTitleScreen()");
 
 	_charVar1 = 0;
 	_charVar2 = 0;
