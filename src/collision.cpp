@@ -23,15 +23,6 @@ void Game::col_prepareRoomState() {
 			_col_activeCollisionSlots[0x60 + (_di->ct_pos & 0x3F)] = i;
 		}
 	}
-#ifdef DEBUG_COLLISION
-	printf("---\n");
-	for (int y = 0; y < 7; ++y) {
-		for (int x = 0; x < 16; ++x) {
-			printf("%d", _res._ctData[0x100 + _currentRoom * 0x70 + y * 16 + x]);
-		}
-		printf("\n");
-	}
-#endif
 }
 
 void Game::col_clearState() {

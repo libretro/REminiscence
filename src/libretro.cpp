@@ -217,16 +217,16 @@ bool retro_load_game_special(unsigned game_type,
 
 void retro_unload_game(void)
 {
-	if (game)
+   if (game)
    {
-		delete game;
-		game = NULL;
-	}
-	if (fs)
+      delete game;
+      game = NULL;
+   }
+   if (fs)
    {
-		delete fs;
-		fs = NULL;
-	}
+      delete fs;
+      fs = NULL;
+   }
 }
 
 unsigned retro_get_region(void)
@@ -236,7 +236,7 @@ unsigned retro_get_region(void)
 
 unsigned retro_api_version(void)
 {
-	return RETRO_API_VERSION;
+   return RETRO_API_VERSION;
 }
 
 void *retro_get_memory_data(unsigned id)
