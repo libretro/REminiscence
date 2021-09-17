@@ -12,10 +12,6 @@
 #include "fs.h"
 #include "util.h"
 
-#ifdef USE_ZLIB
-#include "zlib.h"
-#endif
-
 struct StdioFile : File_impl {
 	FILE *_fp;
 
@@ -81,71 +77,6 @@ struct StdioFile : File_impl {
    }
 };
 
-#ifdef USE_ZLIB
-struct GzipFile : File_impl {
-	gzFile _fp;
-	GzipFile() : _fp(0) {}
-
-	bool open(const char *path, const char *mode)
-   {
-		_ioErr = false;
-		_fp = gzopen(path, mode);
-		return (_fp != 0);
-	}
-
-	void close()
-   {
-		if (_fp)
-      {
-			gzclose(_fp);
-			_fp = 0;
-		}
-	}
-	uint32_t size()
-   {
-		uint32_t sz = 0;
-		if (_fp)
-      {
-			int pos = gztell(_fp);
-			gzseek(_fp, 0, SEEK_END);
-			sz = gztell(_fp);
-			gzseek(_fp, pos, SEEK_SET);
-		}
-		return sz;
-	}
-
-	void seek(int32_t off)
-   {
-		if (_fp)
-			gzseek(_fp, off, SEEK_SET);
-	}
-
-   uint32_t read(void *ptr, uint32_t len)
-   {
-      if (_fp)
-      {
-         uint32_t r = gzread(_fp, ptr, len);
-         if (r != len)
-            _ioErr = true;
-         return r;
-      }
-      return 0;
-   }
-
-	uint32_t write(const void *ptr, uint32_t len)
-   {
-		if (_fp)
-      {
-         uint32_t r = gzwrite(_fp, ptr, len);
-         if (r != len)
-            _ioErr = true;
-         return r;
-      }
-		return 0;
-	}
-};
-#endif
-
 File::File()
 	: _impl(0) {
 }
@@ -176,13 +107,6 @@ bool File::open(const char *filename, const char *mode, const char *directory)
    char path[PATH_MAX_LENGTH];
 
 	cleanup();
-#ifdef USE_ZLIB
-	if (mode[0] == 'z')
-   {
-		_impl = new GzipFile;
-		++mode;
-	}
-#endif
 	if (!_impl)
 		_impl = new StdioFile;
 	snprintf(path, sizeof(path), "%s/%s", directory, filename);
