@@ -273,24 +273,6 @@ typedef float (*PAT_SAMPLE_FUN)(int);
 
 static PAT_SAMPLE_FUN pat_fun[] = { pat_sinus, pat_square, pat_sawtooth };
 
-#if defined(WIN32) && defined(_mm_free)
-#undef _mm_free
-#endif
-
-#define MMSTREAM				FILE
-#define _mm_fopen(name,mode)			fopen(name,mode)
-#define _mm_fgets(f,buf,sz)			fgets(buf,sz,f)
-#define _mm_fseek(f,pos,whence)			fseek(f,pos,whence)
-#define _mm_ftell(f)				ftell(f)
-#define _mm_read_UBYTES(buf,sz,f)		fread(buf,sz,1,f)
-#define _mm_read_SBYTES(buf,sz,f)		fread(buf,sz,1,f)
-#define _mm_feof(f)				feof(f)
-#define _mm_fclose(f)				fclose(f)
-#define DupStr(h,buf,sz)			strdup(buf)
-#define _mm_calloc(h,n,sz)			calloc(n,sz)
-#define _mm_recalloc(h,buf,sz,elsz)	realloc(buf,sz)
-#define _mm_free(h,p)				free(p)
-
 typedef struct {
 	char *mm;
 	int sz;
@@ -347,11 +329,11 @@ static void mmreadSBYTES(char *buf, long sz, MMFILE *mmfile)
 	mmfile->pos += sz;
 }
 
-long _mm_getfsize(MMSTREAM *mmpat) {
+long _mm_getfsize(FILE *mmpat) {
 	long fsize;
-	_mm_fseek(mmpat, 0L, SEEK_END);
-	fsize = _mm_ftell(mmpat);
-	_mm_fseek(mmpat, 0L, SEEK_SET);
+	fseek(mmpat, 0L, SEEK_END);
+	fsize = ftell(mmpat);
+	fseek(mmpat, 0L, SEEK_SET);
 	return(fsize);
 }
 
@@ -361,7 +343,7 @@ void pat_init_patnames(void)
 	char *p, *q;
 	char line[PATH_MAX];
 	char cfgsources[5][PATH_MAX] = {{0}, {0}, {0}, {0}, {0}};
-	MMSTREAM *mmcfg;
+	FILE *mmcfg;
 	strncpy(pathforpat, PATHFORPAT, PATH_MAX);
 	strncpy(timiditycfg, TIMIDITYCFG, PATH_MAX);
 	p = getenv(PAT_ENV_PATH2CFG);
@@ -378,15 +360,15 @@ void pat_init_patnames(void)
 
 	for ( z=0; z<5; z++ ) {
 		if (cfgsources[z][0] == 0) continue;
-		mmcfg = _mm_fopen(cfgsources[z],"r");
+		mmcfg = fopen(cfgsources[z],"r");
 		if( !mmcfg ) {
 			pat_message("can not open %s, use environment variable " PAT_ENV_PATH2CFG " for the directory", cfgsources[z]);
 		}
 		else {
 			// read in bank 0 and drum patches
 			isdrumset = 0;
-			_mm_fgets(mmcfg, line, PATH_MAX);
-			while( !_mm_feof(mmcfg) ) {
+			fgets(line, PATH_MAX, mmcfg);
+			while( !feof(mmcfg) ) {
 			if( isdigit(line[0]) || (isblank(line[0]) && isdigit(line[1])) ) {
 				p = line;
 				// get pat number
@@ -431,10 +413,10 @@ void pat_init_patnames(void)
 				*q = 0; // null termination
 				nsources++;
 			}
-			_mm_fgets(mmcfg, line, PATH_MAX);
+			fgets(line, PATH_MAX, mmcfg);
 
 			} /* end file parsing */
-			_mm_fclose(mmcfg);
+			fclose(mmcfg);
 		}
 	}
 	q = midipat[0];
@@ -481,10 +463,10 @@ static void pat_read_patname(PATHANDLE *h, MMFILE *mmpat) {
 	h->patname[15] = '\0';
 }
 
-static void pat_read_layerheader(MMSTREAM *mmpat, LayerHeader *hl)
+static void pat_read_layerheader(FILE *mmpat, LayerHeader *hl)
 {
-	_mm_fseek(mmpat,sizeof(PatchHeader)+sizeof(InstrumentHeader), SEEK_SET);
-	_mm_read_UBYTES((BYTE *)hl, sizeof(LayerHeader), mmpat);
+	fseek(mmpat,sizeof(PatchHeader)+sizeof(InstrumentHeader), SEEK_SET);
+	fread((BYTE *)hl, sizeof(LayerHeader), 1, mmpat);
 }
 
 static void pat_get_layerheader(MMFILE *mmpat, LayerHeader *hl)
@@ -502,7 +484,7 @@ static int pat_read_numsmp(MMFILE *mmpat) {
 	return hl.samples;
 }
 
-static void pat_read_waveheader(MMSTREAM *mmpat, WaveHeader *hw, int layer)
+static void pat_read_waveheader(FILE *mmpat, WaveHeader *hw, int layer)
 {
 	long int pos, bestpos=0;
 	LayerHeader hl;
@@ -515,15 +497,15 @@ static void pat_read_waveheader(MMSTREAM *mmpat, WaveHeader *hw, int layer)
 		if( layer ) {
 			if( layer > hl.samples ) layer = hl.samples; // you don't fool me....
 			for( i=1; i<layer; i++ ) {
-				_mm_read_UBYTES((BYTE *)hw, sizeof(WaveHeader), mmpat);
-				_mm_fseek(mmpat, hw->wave_size, SEEK_CUR);
+				fread((BYTE *)hw, sizeof(WaveHeader), 1, mmpat);
+				fseek(mmpat, hw->wave_size, SEEK_CUR);
 			}
 		}
 		else {
 			bestfreq = C4mHz * 1000;	// big enough
 			for( i=0; i<hl.samples; i++ ) {
-				pos = _mm_ftell(mmpat);
-				_mm_read_UBYTES((BYTE *)hw, sizeof(WaveHeader), mmpat);
+				pos = ftell(mmpat);
+				fread((BYTE *)hw, sizeof(WaveHeader), 1, mmpat);
 				if( hw->root_frequency > C4mHz )
 					freqdist = hw->root_frequency - C4mHz;
 				else
@@ -532,15 +514,15 @@ static void pat_read_waveheader(MMSTREAM *mmpat, WaveHeader *hw, int layer)
 					bestfreq = freqdist;
 					bestpos  = pos;
 				}
-				_mm_fseek(mmpat, hw->wave_size, SEEK_CUR);
+				fseek(mmpat, hw->wave_size, SEEK_CUR);
 			}
 			// if invalid bestpos, assume the start.
 			if( bestpos < 0 )
 				bestpos = 0;
-			_mm_fseek(mmpat, bestpos, SEEK_SET);
+			fseek(mmpat, bestpos, SEEK_SET);
 		}
 	}
-	_mm_read_UBYTES((BYTE *)hw, sizeof(WaveHeader), mmpat);
+	fread((BYTE *)hw, sizeof(WaveHeader), 1, mmpat);
 	strncpy(hw->reserved, hl.reserved, 32);
 	hw->reserved[31] = 0;
 	if( hw->start_loop >= hw->wave_size ) {
@@ -604,14 +586,14 @@ static int pat_readpat_attr(int pat, WaveHeader *hw, int layer)
 {
 	char fname[128];
 	unsigned long fsize;
-	MMSTREAM *mmpat;
+	FILE *mmpat;
 	pat_build_path(fname, pat);
-	mmpat = _mm_fopen(fname, "rb");
+	mmpat = fopen(fname, "rb");
 	if( !mmpat )
 		return 0;
 	fsize = _mm_getfsize(mmpat);
 	pat_read_waveheader(mmpat, hw, layer);
-	_mm_fclose(mmpat);
+	fclose(mmpat);
 	if (hw->wave_size > fsize)
 		return 0;
 	return 1;
@@ -680,26 +662,26 @@ static int pat_getopt(const char *s, const char *o, int dflt)
 static void pat_readpat(int pat, char *dest, int num)
 {
 	static int readlasttime = 0, wavesize = 0;
-	static MMSTREAM *mmpat = 0;
+	static FILE *mmpat = 0;
 	static char *opt = 0;
 	int amp;
 	char fname[128];
 	WaveHeader hw;
 	if( !readlasttime ) {
 		opt=pat_build_path(fname, pat);
-		mmpat = _mm_fopen(fname, "rb");
+		mmpat = fopen(fname, "rb");
 		if( !mmpat )
 			return;
 		pat_read_waveheader(mmpat, &hw, 0);
 		wavesize = hw.wave_size;
 	}
-	_mm_read_SBYTES(dest, num, mmpat);
+	fread(dest, num, 1, mmpat);
 	amp = pat_getopt(opt,"amp",100);
 	if( amp != 100 ) pat_amplify(dest, num, amp, hw.modes);
 	readlasttime += num;
 	if( readlasttime < wavesize ) return;
 	readlasttime = 0;
-	_mm_fclose(mmpat);
+	fclose(mmpat);
 	mmpat = 0;
 }
 

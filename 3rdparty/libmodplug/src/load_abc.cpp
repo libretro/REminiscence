@@ -401,24 +401,6 @@ static void abc_dumptracks(ABCHANDLE *h, const char *p)
 	}
 }
 
-#if defined(WIN32) && defined(_mm_free)
-#undef _mm_free
-#endif
-
-#define MMSTREAM			FILE
-#define _mm_fopen(name,mode)		fopen(name,mode)
-#define _mm_fgets(f,buf,sz)		fgets(buf,sz,f)
-#define _mm_fseek(f,pos,whence)		fseek(f,pos,whence)
-#define _mm_ftell(f)			ftell(f)
-#define _mm_read_UBYTES(buf,sz,f)	fread(buf,sz,1,f)
-#define _mm_read_SBYTES(buf,sz,f)	fread(buf,sz,1,f)
-#define _mm_feof(f)			feof(f)
-#define _mm_fclose(f)			fclose(f)
-#define DupStr(h,buf,sz)		strdup(buf)
-#define _mm_calloc(h,n,sz)		calloc(n,sz)
-#define _mm_recalloc(h,buf,sz,elsz)	realloc(buf,sz)
-#define _mm_free(h,p)			free(p)
-
 typedef struct {
 	char *mm;
 	int sz;
@@ -514,7 +496,7 @@ static ABCEVENT *abc_new_event(ABCHANDLE *h, uint32_t abctick, const char data[]
 	ABCEVENT   *retval;
 	int i;
 
-	retval = (ABCEVENT *)_mm_calloc(h->trackhandle, 1,sizeof(ABCEVENT));
+	retval = (ABCEVENT *)calloc(h->trackhandle, 1,sizeof(ABCEVENT));
 	retval->next        = NULL;
 	retval->tracktick   = abctick;
 	for( i=0; i<6; i++ )
@@ -529,7 +511,7 @@ static ABCEVENT *abc_copy_event(ABCHANDLE *h, ABCEVENT *se)
 // =============================================================================
 {
 	ABCEVENT *e;
-	e = (ABCEVENT *)_mm_calloc(h->trackhandle, 1,sizeof(ABCEVENT));
+	e = (ABCEVENT *)calloc(h->trackhandle, 1,sizeof(ABCEVENT));
 	e->next        = NULL;
 	e->tracktick   = se->tracktick;
 	e->flg         = se->flg;
@@ -547,10 +529,10 @@ static void abc_new_macro(ABCHANDLE *h, const char *m)
 	char key[256], value[256];
 	abc_extractkeyvalue(key, sizeof(key), value, sizeof(value), m);
 
-	retval = (ABCMACRO *)_mm_calloc(h->macrohandle, 1,sizeof(ABCMACRO));
-	retval->name  = DupStr(h->macrohandle, key, strlen(key));
+	retval = (ABCMACRO *)calloc(h->macrohandle, 1,sizeof(ABCMACRO));
+	retval->name  = strdup(key);
 	retval->n     = strrchr(retval->name, 'n'); // for transposing macro's
-	retval->subst = DupStr(h->macrohandle, value, strlen(value));
+	retval->subst = strdup(value);
 	retval->next  = h->macro;
 	h->macro      = retval;
 }
@@ -571,16 +553,16 @@ static void abc_new_umacro(ABCHANDLE *h, const char *m)
 			if( retval->name[0] == key[0] ) {	// delete this one
 				if( mp ) mp->next = retval->next;
 				else h->umacro = retval->next;
-				_mm_free(h->macrohandle, retval);
+				free(h->macrohandle, retval);
 				return;
 			}
 			mp = retval;
 		}
 		return;
 	}
-	retval = (ABCMACRO *)_mm_calloc(h->macrohandle, 1,sizeof(ABCMACRO));
-	retval->name  = DupStr(h->macrohandle, key, 1);
-	retval->subst = DupStr(h->macrohandle, value, strlen(value));
+	retval = (ABCMACRO *)calloc(h->macrohandle, 1,sizeof(ABCMACRO));
+	retval->name  = strdup(key);
+	retval->subst = strdup(value);
 	retval->n     = 0;
 	retval->next  = h->umacro; // by placing it up front we mask out the old macro until we +nil+ it
 	h->umacro      = retval;
@@ -592,7 +574,7 @@ static ABCTRACK *abc_new_track(ABCHANDLE *h, const char *voice, int pos)
 {
 	ABCTRACK *retval;
 	if( !pos ) global_voiceno++;
-	retval = (ABCTRACK *)_mm_calloc(h->trackhandle, 1,sizeof(ABCTRACK));
+	retval = (ABCTRACK *)calloc(h->trackhandle, 1,sizeof(ABCTRACK));
 	retval->next         = NULL;
 	retval->vno          = global_voiceno;
 	retval->vpos         = pos;
@@ -989,14 +971,14 @@ static void abc_remove_unnecessary_events(ABCHANDLE *h)
 							el->next = ep->next;
 							if( !el->next )
 								tp->tail = el;
-							_mm_free(h->trackhandle,ep);
+							free(h->trackhandle,ep);
 							ep = el->next;
 						}
 						else {
 							tp->head = ep->next;
 							if( !tp->head )
 								tp->tail = NULL;
-							_mm_free(h->trackhandle,ep);
+							free(h->trackhandle,ep);
 							ep = tp->head;
 						}
 						break;
@@ -1018,12 +1000,12 @@ static void abc_remove_unnecessary_events(ABCHANDLE *h)
 		if( !tp->head ) { // no need to keep empty tracks...
 			if( ptp ) {
 				ptp->next = tp->next;
-				_mm_free(h->trackhandle,tp);
+				free(h->trackhandle,tp);
 				tp = ptp;
 			}
 			else if (tp->next) {
 				h->track = tp->next;
-				_mm_free(h->trackhandle,tp);
+				free(h->trackhandle,tp);
 				tp = h->track;
 			} else {
 				break;
@@ -1825,7 +1807,7 @@ static void	abc_set_parts(char **d, char *p)
 	}
 	// more than 10 million part segments is excessive.
 	size = ( j >= 1e7 )? 1e7 - 1 : j;
-	q = (char *)_mm_calloc(h, size + 1, sizeof(char)); // enough storage for the worst case
+	q = (char *)calloc(h, size + 1, sizeof(char)); // enough storage for the worst case
 	// now copy bytes from p to *d, taking parens and digits in account
 	j = 0;
 	for( i=0; p[i] && p[i] != '%' && j < size && i < size; i++ ) {
@@ -1945,7 +1927,7 @@ static void abc_stripoff(ABCHANDLE *h, ABCTRACK *tp, uint32_t tt)
 	}
 	while( e1 ) {
 		e2 = e1->next;
-		_mm_free(h->trackhandle,e1);
+		free(h->trackhandle,e1);
 		e1 = e2;
 	}
 }
@@ -2206,7 +2188,7 @@ static void abc_substitute(ABCHANDLE *h, char *target, char *s)
 		if( (i=strlen(h->line)) + n - l >= (int)h->len ) {
 			int reqsize = h->len<<1;
 			while (i + n - l >= reqsize) reqsize = reqsize<<1;
-			h->line = (char *)_mm_recalloc(h->allochandle, h->line, reqsize, sizeof(char));
+			h->line = (char *)realloc(h->line, reqsize);
 			h->len = reqsize;
 			p=strstr(h->line, target);
 		}
@@ -2262,12 +2244,12 @@ static char *abc_gets(ABCHANDLE *h, MMFILE *mmfile)
 	ABCMACRO *mp;
 	if( !h->len ) {
 		h->len = 64;	// initial line size, adequate for most abc's
-		h->line = (char *)_mm_calloc(h->allochandle, h->len, sizeof(char));
+		h->line = (char *)calloc(h->allochandle, h->len, sizeof(char));
 	}
 	if( abc_fgetbytes(mmfile, h->line, h->len) ) {
 		while( (i=strlen(h->line)) > (int)(h->len - 3) ) {
 			// line too short, double it
-			h->line = (char *)_mm_recalloc(h->allochandle, h->line, h->len<<1, sizeof(char));
+			h->line = (char *)realloc(h->line, h->len<<1);
 			if( h->line[i-1] != '\n' )
 				abc_fgetbytes(mmfile, &h->line[i], h->len);
 			h->len <<= 1;
@@ -3323,9 +3305,9 @@ static void abc_MIDI_beat(ABCHANDLE *h, const char *p)
 static void abc_MIDI_beatstring(ABCHANDLE *h, const char *p)
 {
 	while( isspace(*p) ) p++;
-	if( h->beatstring ) _mm_free(h->allochandle, h->beatstring);
+	if( h->beatstring ) free(h->allochandle, h->beatstring);
 	if( strlen(p) )
-		h->beatstring = DupStr(h->allochandle,p,strlen(p)+1);
+		h->beatstring = strdup(p);
 	else
 		h->beatstring = NULL;
 }
@@ -3383,7 +3365,7 @@ static int abc_partpat_to_orderlist(BYTE partp[27][2], const char *abcparts, ABC
 	static int ordersize = 0;
 	if( *list == NULL ) {
 		ordersize = 128;
-		orderlist = (BYTE *)_mm_calloc(h->ho, ordersize, sizeof(BYTE));
+		orderlist = (BYTE *)calloc(h->ho, ordersize, sizeof(BYTE));
 		*list = orderlist;
 	}
 	if( abcparts ) {
@@ -3393,7 +3375,7 @@ static int abc_partpat_to_orderlist(BYTE partp[27][2], const char *abcparts, ABC
 				if( orderlen == ordersize ) {
 					ordersize <<= 1;
 					if (ordersize == 0) ordersize = 2;
-					orderlist = (BYTE *)_mm_recalloc(h->ho, orderlist, ordersize, sizeof(BYTE));
+					orderlist = (BYTE *)realloc(orderlist, ordersize);
 					*list = orderlist;
 				}
 				orderlist[orderlen] = t;
@@ -3408,7 +3390,7 @@ static int abc_partpat_to_orderlist(BYTE partp[27][2], const char *abcparts, ABC
 		if( orderlen == ordersize ) {
 			ordersize <<= 1;
 			if (ordersize == 0) ordersize = 2;
-			orderlist = (BYTE *)_mm_recalloc(h->ho, orderlist, ordersize, sizeof(BYTE));
+			orderlist = (BYTE *)realloc(orderlist, ordersize);
 			*list = orderlist;
 		}
 		orderlist[orderlen] = t;

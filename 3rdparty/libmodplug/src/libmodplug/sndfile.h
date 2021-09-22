@@ -660,13 +660,6 @@ public:
 	BOOL ReadPAT(LPCBYTE lpStream, DWORD dwMemLength);
 	BOOL TestPAT(LPCBYTE lpStream, DWORD dwMemLength);
 	// Save Functions
-#ifndef MODPLUG_NO_FILESAVE
-	UINT WriteSample(FILE *f, MODINSTRUMENT *pins, UINT nFlags, UINT nMaxLen=0);
-	BOOL SaveXM(LPCSTR lpszFileName, UINT nPacking=0);
-	BOOL SaveS3M(LPCSTR lpszFileName, UINT nPacking=0);
-	BOOL SaveMod(LPCSTR lpszFileName, UINT nPacking=0);
-	BOOL SaveIT(LPCSTR lpszFileName, UINT nPacking=0);
-#endif // MODPLUG_NO_FILESAVE
 	// MOD Convert function
 	UINT GetBestSaveFormat() const;
 	UINT GetSaveFormats() const;
@@ -782,7 +775,6 @@ public:
 	void ResetMidiCfg();
 	UINT MapMidiInstrument(DWORD dwProgram, UINT nChannel, UINT nNote);
 	BOOL ITInstrToMPT(const void *p, INSTRUMENTHEADER *penv, UINT trkvers);
-	UINT SaveMixPlugins(FILE *f=NULL, BOOL bUpdate=TRUE);
 	UINT LoadMixPlugins(const void *pData, UINT nLen);
 #ifndef NO_FILTER
 	DWORD CutOffToFrequency(UINT nCutOff, int flt_modifier=256) const; // [0-255] => [1-10KHz]
