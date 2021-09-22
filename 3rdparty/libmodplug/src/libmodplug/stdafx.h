@@ -32,8 +32,6 @@
 #define srandom(_seed)  srand(_seed)
 #define random()        rand()
 
-inline void ProcessPlugins(int n) {}
-
 #undef strcasecmp
 #undef strncasecmp
 #define strcasecmp(a,b)     _stricmp(a,b)
@@ -99,8 +97,6 @@ inline int8_t * GlobalAllocPtr(unsigned int, size_t size)
   if (p != NULL) memset(p, 0, size);
   return p;
 }
-
-inline void ProcessPlugins(int n) {}
 
 #ifndef FALSE
 #define FALSE	false
