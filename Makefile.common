@@ -18,7 +18,9 @@ ifneq ($(platform), win)
 FLAGS += -DHAVE_SETENV
 endif
 
-ifneq (,$(findstring msvc2003,$(platform)))
+ifneq (,$(findstring msvc2019,$(platform)))
+else ifneq (,$(findstring msvc2017,$(platform)))
+else ifneq (,$(findstring msvc,$(platform)))
 INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
 endif
 
