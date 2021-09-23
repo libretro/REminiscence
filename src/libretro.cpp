@@ -11,6 +11,7 @@
 #include "game.h"
 #include "video.h"
 #include <file/file_path.h>
+#include <streams/file_stream.h>
 
 #define RE_VERSION "0.3.6"
 
@@ -36,7 +37,17 @@ static int16_t joypad_bits;
  ************************************/
 
 
-void retro_set_environment(retro_environment_t cb) { environ_cb = cb; }
+void retro_set_environment(retro_environment_t cb)
+{
+	struct retro_vfs_interface_info vfs_iface_info;
+
+	environ_cb = cb;
+
+	vfs_iface_info.required_interface_version = 1;
+	vfs_iface_info.iface                      = NULL;
+	if (cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
+		filestream_vfs_init(&vfs_iface_info);
+}
 
 void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
 

@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (compat_strcasestr.c).
+ * The following license statement only applies to this file (compat_posix_string.c).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -22,37 +22,83 @@
 
 #include <ctype.h>
 
-#include <compat/strcasestr.h>
+#include <compat/posix_string.h>
 
-/* Pretty much strncasecmp. */
-static int casencmp(const char *a, const char *b, size_t n)
+#ifdef _WIN32
+
+#undef strcasecmp
+#undef strdup
+#undef isblank
+#undef strtok_r
+#include <ctype.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <compat/strl.h>
+
+#include <string.h>
+
+int retro_strcasecmp__(const char *a, const char *b)
 {
-   size_t i;
-
-   for (i = 0; i < n; i++)
+   while (*a && *b)
    {
-      int a_lower = tolower(a[i]);
-      int b_lower = tolower(b[i]);
-      if (a_lower != b_lower)
-         return a_lower - b_lower;
+      int a_ = tolower(*a);
+      int b_ = tolower(*b);
+
+      if (a_ != b_)
+         return a_ - b_;
+
+      a++;
+      b++;
    }
 
-   return 0;
+   return tolower(*a) - tolower(*b);
 }
 
-char *strcasestr_retro__(const char *haystack, const char *needle)
+char *retro_strdup__(const char *orig)
 {
-   size_t i, search_off;
-   size_t hay_len    = strlen(haystack);
-   size_t needle_len = strlen(needle);
-
-   if (needle_len > hay_len)
+   size_t len = strlen(orig) + 1;
+   char *ret  = (char*)malloc(len);
+   if (!ret)
       return NULL;
 
-   search_off = hay_len - needle_len;
-   for (i = 0; i <= search_off; i++)
-      if (!casencmp(haystack + i, needle, needle_len))
-         return (char*)haystack + i;
-
-   return NULL;
+   strlcpy(ret, orig, len);
+   return ret;
 }
+
+int retro_isblank__(int c)
+{
+   return (c == ' ') || (c == '\t');
+}
+
+char *retro_strtok_r__(char *str, const char *delim, char **saveptr)
+{
+   char *first = NULL;
+   if (!saveptr || !delim)
+      return NULL;
+
+   if (str)
+      *saveptr = str;
+
+   do
+   {
+      char *ptr = NULL;
+      first = *saveptr;
+      while (*first && strchr(delim, *first))
+         *first++ = '\0';
+
+      if (*first == '\0')
+         return NULL;
+
+      ptr = first + 1;
+
+      while (*ptr && !strchr(delim, *ptr))
+         ptr++;
+
+      *saveptr = ptr + (*ptr ? 1 : 0);
+      *ptr     = '\0';
+   } while (strlen(first) == 0);
+
+   return first;
+}
+
+#endif

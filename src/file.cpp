@@ -8,18 +8,34 @@
 
 #include <retro_miscellaneous.h>
 
+#include <streams/file_stream.h>
+
 #include "file.h"
 #include "fs.h"
 
+/* Forward declarations */
+extern "C" {
+
+RFILE* rfopen(const char *path, const char *mode);
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rfseek(RFILE* stream, int64_t offset, int origin);
+int64_t rftell(RFILE* stream);
+int rfclose(RFILE* stream);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+
+}
+
 struct StdioFile : File_impl {
-	FILE *_fp;
+	RFILE *_fp;
 
 	StdioFile() : _fp(0) {}
 
 	bool open(const char *path, const char *mode)
    {
 		_ioErr = false;
-		_fp    = fopen(path, mode);
+		_fp    = rfopen(path, mode);
 		return (_fp != 0);
 	}
 
@@ -27,7 +43,7 @@ struct StdioFile : File_impl {
    {
 		if (_fp)
       {
-			fclose(_fp);
+			rfclose(_fp);
 			_fp = 0;
 		}
 	}
@@ -37,10 +53,10 @@ struct StdioFile : File_impl {
 		uint32_t sz = 0;
 		if (_fp)
       {
-			int pos = ftell(_fp);
-			fseek(_fp, 0, SEEK_END);
-			sz = ftell(_fp);
-			fseek(_fp, pos, SEEK_SET);
+			int pos = rftell(_fp);
+			rfseek(_fp, 0, SEEK_END);
+			sz = rftell(_fp);
+			rfseek(_fp, pos, SEEK_SET);
 		}
 		return sz;
 	}
@@ -48,14 +64,14 @@ struct StdioFile : File_impl {
    void seek(int32_t off)
    {
       if (_fp)
-         fseek(_fp, off, SEEK_SET);
+         rfseek(_fp, off, SEEK_SET);
    }
 
 	uint32_t read(void *ptr, uint32_t len)
    {
 		if (_fp)
       {
-			uint32_t r = fread(ptr, 1, len, _fp);
+			uint32_t r = rfread(ptr, 1, len, _fp);
 			if (r != len)
 				_ioErr = true;
 			return r;
@@ -67,7 +83,7 @@ struct StdioFile : File_impl {
    {
       if (_fp)
       {
-         uint32_t r = fwrite(ptr, 1, len, _fp);
+         uint32_t r = rfwrite(ptr, 1, len, _fp);
          if (r != len)
             _ioErr = true;
          return r;
