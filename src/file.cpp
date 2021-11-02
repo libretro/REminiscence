@@ -4,8 +4,6 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
-#include <stdio.h>
-
 #include <retro_miscellaneous.h>
 
 #include <streams/file_stream.h>

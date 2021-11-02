@@ -15,85 +15,86 @@
 #include <stdio.h>
 #include "fs.h"
 
-struct FileName {
-	char *name;
-	int dir;
+struct FileName
+{
+   char *name;
+   int dir;
 };
 
-struct FileSystem_impl {
+struct FileSystem_impl
+{
+   char **_dirsList;
+   int _dirsCount;
+   FileName *_filesList;
+   int _filesCount;
 
-	char **_dirsList;
-	int _dirsCount;
-	FileName *_filesList;
-	int _filesCount;
+   FileSystem_impl() :
+      _dirsList(0), _dirsCount(0), _filesList(0), _filesCount(0) {
+      }
 
-	FileSystem_impl() :
-		_dirsList(0), _dirsCount(0), _filesList(0), _filesCount(0) {
-	}
+   ~FileSystem_impl() {
+      for (int i = 0; i < _dirsCount; ++i) {
+         free(_dirsList[i]);
+      }
+      free(_dirsList);
+      for (int i = 0; i < _filesCount; ++i) {
+         free(_filesList[i].name);
+      }
+      free(_filesList);
+   }
 
-	~FileSystem_impl() {
-		for (int i = 0; i < _dirsCount; ++i) {
-			free(_dirsList[i]);
-		}
-		free(_dirsList);
-		for (int i = 0; i < _filesCount; ++i) {
-			free(_filesList[i].name);
-		}
-		free(_filesList);
-	}
+   void setRootDirectory(const char *dir) {
+      getPathListFromDirectory(dir);
+   }
 
-	void setRootDirectory(const char *dir) {
-		getPathListFromDirectory(dir);
-	}
+   int findPathIndex(const char *name) const {
+      for (int i = 0; i < _filesCount; ++i) {
+         if (strcasecmp(_filesList[i].name, name) == 0) {
+            return i;
+         }
+      }
+      return -1;
+   }
 
-	int findPathIndex(const char *name) const {
-		for (int i = 0; i < _filesCount; ++i) {
-			if (strcasecmp(_filesList[i].name, name) == 0) {
-				return i;
-			}
-		}
-		return -1;
-	}
+   char *getPath(const char *name) const {
+      const int i = findPathIndex(name);
+      if (i >= 0) {
+         const char *dir = _dirsList[_filesList[i].dir];
+         const int len = strlen(dir) + 1 + strlen(_filesList[i].name) + 1;
+         char *p = (char *)malloc(len);
+         if (p) {
+            snprintf(p, len, "%s/%s", dir, _filesList[i].name);
+         }
+         return p;
+      }
+      return 0;
+   }
 
-	char *getPath(const char *name) const {
-		const int i = findPathIndex(name);
-		if (i >= 0) {
-			const char *dir = _dirsList[_filesList[i].dir];
-			const int len = strlen(dir) + 1 + strlen(_filesList[i].name) + 1;
-			char *p = (char *)malloc(len);
-			if (p) {
-				snprintf(p, len, "%s/%s", dir, _filesList[i].name);
-			}
-			return p;
-		}
-		return 0;
-	}
+   void addPath(const char *dir, const char *name) {
+      int index = -1;
+      for (int i = 0; i < _dirsCount; ++i) {
+         if (strcmp(_dirsList[i], dir) == 0) {
+            index = i;
+            break;
+         }
+      }
+      if (index == -1) {
+         _dirsList = (char **)realloc(_dirsList, (_dirsCount + 1) * sizeof(char *));
+         if (_dirsList) {
+            _dirsList[_dirsCount] = strdup(dir);
+            index = _dirsCount;
+            ++_dirsCount;
+         }
+      }
+      _filesList = (FileName *)realloc(_filesList, (_filesCount + 1) * sizeof(FileName));
+      if (_filesList) {
+         _filesList[_filesCount].name = strdup(name);
+         _filesList[_filesCount].dir = index;
+         ++_filesCount;
+      }
+   }
 
-	void addPath(const char *dir, const char *name) {
-		int index = -1;
-		for (int i = 0; i < _dirsCount; ++i) {
-			if (strcmp(_dirsList[i], dir) == 0) {
-				index = i;
-				break;
-			}
-		}
-		if (index == -1) {
-			_dirsList = (char **)realloc(_dirsList, (_dirsCount + 1) * sizeof(char *));
-			if (_dirsList) {
-				_dirsList[_dirsCount] = strdup(dir);
-				index = _dirsCount;
-				++_dirsCount;
-			}
-		}
-		_filesList = (FileName *)realloc(_filesList, (_filesCount + 1) * sizeof(FileName));
-		if (_filesList) {
-			_filesList[_filesCount].name = strdup(name);
-			_filesList[_filesCount].dir = index;
-			++_filesCount;
-		}
-	}
-
-	void getPathListFromDirectory(const char *dir);
+   void getPathListFromDirectory(const char *dir);
 };
 
 #ifdef _WIN32
