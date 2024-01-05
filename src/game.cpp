@@ -40,6 +40,7 @@ Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 	_skillLevel    = _menu._skill = 1;
 	_currentLevel  = _menu._level = level;
 	_demoBin       = -1;
+	memset(&_pi, 0, sizeof(PlayerInput));
 	Game::instance = this;
 }
 
