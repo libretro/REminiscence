@@ -147,6 +147,8 @@ else ifeq ($(platform), tvos-arm64)
       IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
    endif
    FLAGS += -DIOS -DHAVE_POSIX_MEMALIGN
+   CC = cc -arch arm64 -isysroot $(IOSSDK)
+   CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 
 # QNX
 else ifeq ($(platform), qnx)
