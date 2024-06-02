@@ -147,6 +147,8 @@ else ifeq ($(platform), tvos-arm64)
       IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
    endif
    FLAGS += -DIOS -DHAVE_POSIX_MEMALIGN
+   CC = cc -arch arm64 -isysroot $(IOSSDK)
+   CXX = c++ -arch arm64 -isysroot $(IOSSDK)
 
 # QNX
 else ifeq ($(platform), qnx)
@@ -242,6 +244,7 @@ else ifneq (,$(filter $(platform), ngc wii wiiu))
 else ifeq ($(platform), emscripten)
    TARGET := $(TARGET_NAME)_libretro_$(platform).bc
    STATIC_LINKING = 1
+   CXXFLAGS += -Dregister=''
 
 # GCW Zero
 else ifeq ($(platform), gcw0)
@@ -540,9 +543,7 @@ else
 endif
 
 $(TARGET): $(OBJECTS)
-ifeq ($(platform), emscripten)
-	$(CXX) $(CXXFLAGS) $(OBJOUT)$@ $^
-else ifeq ($(STATIC_LINKING), 1)
+ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	$(LD) $(LINKOUT)$@ $^ $(LDFLAGS) $(LIBS)
