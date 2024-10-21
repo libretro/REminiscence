@@ -149,6 +149,11 @@ else ifeq ($(platform), tvos-arm64)
    FLAGS += -DIOS -DHAVE_POSIX_MEMALIGN
    CC = cc -arch arm64 -isysroot $(IOSSDK)
    CXX = c++ -arch arm64 -isysroot $(IOSSDK)
+   MINVER = -mappletvos-version-min=11.0
+   LDFLAGS += $(MINVER)
+   FLAGS += $(MINVER)
+   CC += $(MINVER)
+   CXX += $(MINVER)
 
 # QNX
 else ifeq ($(platform), qnx)
