@@ -1031,7 +1031,7 @@ void Resource::load_SPM(File *f) {
 	for (int i = 0; i < NUM_SPRITES; ++i) {
 		const uint32_t offset = _spmOffsetsTable[i];
 		if (offset >= kPersoDatSize) {
-			_sprData[i] = _sprm + offset - kPersoDatSize;
+			_sprData[i] = _sprm + (offset - kPersoDatSize);
 		} else {
 			_sprData[i] = _spr1 + offset;
 		}
