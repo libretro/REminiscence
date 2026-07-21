@@ -55,7 +55,6 @@ struct Game {
 	typedef int (Game::*pge_ZOrderCallback)(LivePGE *, LivePGE *, uint8_t, uint8_t);
 	typedef int (Game::*col_Callback1)(LivePGE *, LivePGE *, int16_t, int16_t);
 	typedef int (Game::*col_Callback2)(LivePGE *, int16_t, int16_t, int16_t);
-	typedef void *cothread_t;
 
 	enum {
 		CT_UP_ROOM    = 0x00,
@@ -160,8 +159,21 @@ struct Game {
 
 	PlayerInput _pi;
 	bool        running;
-	cothread_t  mainThread;
-	cothread_t  gameThread;
+	/* Single-threaded frame-driver (replaces libco). retro_run() calls
+	 * runFrame() once per host frame; it advances the active task exactly one
+	 * presented frame. Tasks form an explicit call stack: a task step returns
+	 * TR_FRAME (produced a frame, return to host), TR_POP (finished, resume
+	 * caller) or TR_CALL (pushed a sub-task, run it next). This is the
+	 * stackless equivalent of the old blocking call tree. */
+	enum {
+		TASK_RUN, TASK_MAINLOOP, TASK_CUTSCENE, TASK_CHANGELEVEL,
+		TASK_STORYTEXT, TASK_FADE, TASK_INVENTORY, TASK_CONFIG,
+		TASK_FINALSCORE, TASK_CONTINUEABORT
+	};
+	struct Task { int tag; int phase; int saved; };
+	Task _task[12];
+	int  _taskTop;
+	int  _cutPushId; /* original playCutscene() id arg for the cutscene task */
 	uint32_t    _sleep;
 	uint32_t    _lastTimestamp;
 	int         _state;
@@ -171,11 +183,22 @@ struct Game {
 
 	void init();
 	void run();
-
-	void tick();
+	void runFrame();
 
 	void yield();
 	void sleep(int ms);
+
+	/* frame-driver task steps */
+	int  stepTask();
+	int  pushTask(int tag);
+	int  runTaskStep();
+	int  mainLoopTaskStep();
+	int  cutsceneTaskStep();
+	int  changeLevelTaskStep();
+	int  finalScoreTaskStep();
+	int  continueAbortTaskStep();
+	int  configTaskStep();
+	int  inventoryTaskStep();
 	/* Consume one host frame's worth of pending sleep time from the shared
 	 * _sleep accumulator. Returns true while there is still sleep time to
 	 * burn (the caller should re-present the current frame and return

@@ -97,6 +97,8 @@ struct Cutscene {
 	int      _stepPhase;
 	int      _spPhase;
 	uint16_t _waitSyncN;
+	const uint16_t *_credSeqPtr; /* playCredits sequence cursor */
+	bool     _credPumping;
 
 	Cutscene(Resource *res, Game *game, Video *vid);
 
@@ -134,6 +136,9 @@ struct Cutscene {
 	void mainLoop(uint16_t offset);
 	void mainLoopInit(uint16_t offset);
 	bool mainLoopStep();
+	bool playSetup();
+	void playCreditsInit();
+	bool playCreditsStep();
 	bool setPaletteStep();
 	bool syncStep();
 	bool isSuspendingOp(int op);

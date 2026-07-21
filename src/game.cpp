@@ -6,7 +6,6 @@
 
 #include <ctime>
 #include <stdio.h>
-#include <libco.h>
 #include "file.h"
 #include "fs.h"
 #include "game.h"
@@ -48,15 +47,6 @@ Game::~Game() {
 	Game::instance = NULL;
 }
 
-static void game_thread() {
-	Game::instance->run();
-	Game::instance->running = false;
-	while (true) {
-		/* Running dead emulator */
-		Game::instance->yield();
-	}
-}
-
 void Game::init() {
 	_randSeed = time(0);
 
@@ -73,9 +63,11 @@ void Game::init() {
 	_mix.init();
 	_mix._mod._isAmiga = false;
 
-	running    = true;
-	mainThread = co_active();
-	gameThread = co_create(65536 * sizeof(void *), game_thread);
+	running     = true;
+	_taskTop    = 0;
+	_task[0].tag   = TASK_RUN;
+	_task[0].phase = 0;
+	_task[0].saved = _state;
 }
 
 void Game::run() {
@@ -158,23 +150,60 @@ void Game::run() {
 	_res.fini();
 }
 
-void Game::tick() {
+/* Task step results. */
+enum { TR_FRAME = 0, TR_POP = 1, TR_CALL = 2 };
+
+void Game::runFrame() {
+	if (_taskTop < 0)
+		return; /* game finished */
 	_lastTimestamp += MS_PER_FRAME;
-	co_switch(gameThread);
+	for (;;) {
+		if (_taskTop < 0) {
+			running = false;
+			return;
+		}
+		int r = stepTask();
+		if (r == TR_FRAME)
+			return; /* one presented frame produced */
+		if (r == TR_POP) {
+			_state = _task[_taskTop].saved; /* restore caller state (StateManager) */
+			--_taskTop;
+		}
+		/* TR_CALL: loop and run the freshly pushed task */
+	}
 }
 
+int Game::pushTask(int tag) {
+	++_taskTop;
+	_task[_taskTop].tag   = tag;
+	_task[_taskTop].phase = 0;
+	_task[_taskTop].saved = _state;
+	return TR_CALL;
+}
+
+int Game::stepTask() {
+	switch (_task[_taskTop].tag) {
+	case TASK_RUN:           return runTaskStep();
+	case TASK_MAINLOOP:      return mainLoopTaskStep();
+	case TASK_CUTSCENE:      return cutsceneTaskStep();
+	case TASK_CHANGELEVEL:   return changeLevelTaskStep();
+	case TASK_FINALSCORE:    return finalScoreTaskStep();
+	case TASK_CONTINUEABORT: return continueAbortTaskStep();
+	case TASK_CONFIG:        return configTaskStep();
+	case TASK_INVENTORY:     return inventoryTaskStep();
+	case TASK_STORYTEXT:     return (drawStoryTextsStep() == STEP_RUNNING) ? TR_FRAME : TR_POP;
+	case TASK_FADE:          return (_vid.fadeOutStep()   == STEP_RUNNING) ? TR_FRAME : TR_POP;
+	}
+	return TR_POP;
+}
+
+/* Retained as harmless no-ops so the (now unreachable) blocking wrappers still
+ * compile; the live path never calls them. */
 void Game::yield() {
-	co_switch(mainThread);
 }
 
 void Game::sleep(int ms) {
-	const int ms_per_frame = 1000 / getFrameRate();
 	_sleep += ms;
-
-	while (_sleep >= ms_per_frame) {
-		yield();
-		_sleep -= ms_per_frame;
-	}
 }
 
 bool Game::sleepHold() {
@@ -184,6 +213,496 @@ bool Game::sleepHold() {
 		return true;
 	}
 	return false;
+}
+
+/* ---- frame-driver task steps (stackless equivalent of run()/mainLoop()) ---- */
+
+int Game::cutsceneTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0:
+			if (_cutPushId != -1) {
+				_cut._id = _cutPushId;
+			}
+			if (_cut._id == 0xFFFF) {
+				return TR_POP;
+			}
+			_state = STATE_CUT_SCENE;
+			_mix.stopMusic();
+			if (_cut._id != 0x4A) {
+				_mix.playMusic(Cutscene::_musicTable[_cut._id]);
+			}
+			ph = _cut.playSetup() ? 1 : 2;
+			break;
+		case 1: /* pump play() #1 */
+			if (_cut.mainLoopStep()) {
+				return TR_FRAME;
+			}
+			ph = 2;
+			break;
+		case 2: /* play() epilogue + (id==0xD)->0x4A chain */
+			if (_cut._id != 0x3D) {
+				_cut._id = 0xFFFF;
+			}
+			if (_cutPushId == 0xD && !_cut._interrupted) {
+				_cut._id = 0x4A;
+				ph = _cut.playSetup() ? 3 : 4;
+				break;
+			}
+			ph = 5;
+			break;
+		case 3: /* pump play() #2 (0x4A) */
+			if (_cut.mainLoopStep()) {
+				return TR_FRAME;
+			}
+			ph = 4;
+			break;
+		case 4:
+			if (_cut._id != 0x3D) {
+				_cut._id = 0xFFFF;
+			}
+			ph = 5;
+			break;
+		case 5: /* (id==0x3D)->credits */
+			if (_cutPushId == 0x3D) {
+				_cut.playCreditsInit();
+				ph = 6;
+				break;
+			}
+			ph = 7;
+			break;
+		case 6: /* pump credits */
+			if (_cut.playCreditsStep()) {
+				return TR_FRAME;
+			}
+			ph = 7;
+			break;
+		default: /* 7 */
+			_mix.stopMusic();
+			return TR_POP;
+		}
+	}
+}
+
+int Game::changeLevelTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	switch (ph) {
+	case 0:
+		_vid.fadeOutInit();
+		ph = 1;
+		return pushTask(TASK_FADE);
+	default:
+		loadLevelData();
+		loadLevelMap();
+		_vid.setPalette0xF();
+		_vid.setTextPalette();
+		return TR_POP;
+	}
+}
+
+int Game::finalScoreTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0:
+			_state     = STATE_FINAL_SCORE;
+			_cut._id   = 0x49;
+			_cutPushId = 0x49;
+			ph = 1;
+			return pushTask(TASK_CUTSCENE);
+		case 1: {
+			char buf[50];
+			snprintf(buf, sizeof(buf), "SCORE %08u", _score);
+			_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 40, 0xE5);
+			strcpy(buf, _menu._passwords[7][_skillLevel]);
+			_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 16, 0xE7);
+			_finalScoreStarted = false;
+			ph = 2;
+			break;
+		}
+		default:
+			return (showFinalScoreStep() == STEP_RUNNING) ? TR_FRAME : TR_POP;
+		}
+	}
+}
+
+int Game::continueAbortTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0:
+			_cut._id   = 0x48;
+			_cutPushId = 0x48;
+			ph = 1;
+			return pushTask(TASK_CUTSCENE);
+		case 1:
+			_caTimeout      = 100;
+			_caCurrentColor = 0;
+			_caColors[0]    = 0xE4;
+			_caColors[1]    = 0xE5;
+			_caColorInc     = 0xFF;
+			_vid.getPaletteEntry(0xE4, &_caCol);
+			memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
+			_caResume = false;
+			_caResult = false;
+			ph = 2;
+			break;
+		default:
+			return (handleContinueAbortStep() == STEP_RUNNING) ? TR_FRAME : TR_POP;
+		}
+	}
+}
+
+int Game::configTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0: {
+			const int  x = 7;
+			const int  y = 10;
+			const int  w = 17;
+			const int  h = 12;
+			static const bool kUseDefaultFont = true;
+			_vid._charShadowColor      = 0xE2;
+			_vid._charFrontColor       = 0xEE;
+			_vid._charTransparentColor = 0xFF;
+			_vid.PC_drawChar(0x81, y, x, kUseDefaultFont);
+			for (int i = 1; i < w; ++i) {
+				_vid.PC_drawChar(0x85, y, x + i, kUseDefaultFont);
+			}
+			_vid.PC_drawChar(0x82, y, x + w, kUseDefaultFont);
+			for (int j = 1; j < h; ++j) {
+				_vid.PC_drawChar(0x86, y + j, x, kUseDefaultFont);
+				for (int i = 1; i < w; ++i) {
+					_vid._charTransparentColor = 0xE2;
+					_vid.PC_drawChar(0x20, y + j, x + i, kUseDefaultFont);
+				}
+				_vid._charTransparentColor = 0xFF;
+				_vid.PC_drawChar(0x87, y + j, x + w, kUseDefaultFont);
+			}
+			_vid.PC_drawChar(0x83, y + h, x, kUseDefaultFont);
+			for (int i = 1; i < w; ++i) {
+				_vid.PC_drawChar(0x88, y + h, x + i, kUseDefaultFont);
+			}
+			_vid.PC_drawChar(0x84, y + h, x + w, kUseDefaultFont);
+			_menu._charVar3 = 0xE4;
+			_menu._charVar4 = 0xE5;
+			_menu._charVar1 = 0xE2;
+			_menu._charVar2 = 0xEE;
+			_cpColors[0] = 2;
+			_cpColors[1] = 3;
+			_cpColors[2] = 3;
+			_cpColors[3] = 3;
+			_cpCurrent   = 0;
+			_cpSleeping  = false;
+			_cpResult    = false;
+			ph = 1;
+			break;
+		}
+		default:
+			return (handleConfigPanelStep() == STEP_RUNNING) ? TR_FRAME : TR_POP;
+		}
+	}
+}
+
+int Game::inventoryTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0: {
+			_state = STATE_INVENTORY;
+			_invSelectedPge = 0;
+			LivePGE *pge = &_pgeLive[0];
+			if (!(pge->life > 0 && pge->current_inventory_PGE != 0xFF)) {
+				return TR_POP;
+			}
+			playSound(66, 0);
+			_invNumItems = 0;
+			uint8_t inv_pge = pge->current_inventory_PGE;
+			while (inv_pge != 0xFF) {
+				_invItems[_invNumItems].icon_num = _res._pgeInit[inv_pge].icon_num;
+				_invItems[_invNumItems].init_pge = &_res._pgeInit[inv_pge];
+				_invItems[_invNumItems].live_pge = &_pgeLive[inv_pge];
+				inv_pge = _pgeLive[inv_pge].next_inventory_PGE;
+				++_invNumItems;
+			}
+			_invItems[_invNumItems].icon_num = 0xFF;
+			_invCurrentItem  = 0;
+			_invNumLines     = (_invNumItems - 1) / 4 + 1;
+			_invCurrentLine  = 0;
+			_invDisplayScore = false;
+			_invSleeping     = false;
+			ph = 1;
+			break;
+		}
+		default:
+			if (handleInventoryStep() == STEP_RUNNING) {
+				return TR_FRAME;
+			}
+			_pi.inventory_skip = false;
+			if (_invSelectedPge) {
+				pge_setCurrentInventoryObject(_invSelectedPge);
+			}
+			playSound(66, 0);
+			return TR_POP;
+		}
+	}
+}
+
+int Game::runTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0:
+			_cut._id = 0x40; _cutPushId = 0x40;
+			ph = 1;
+			return pushTask(TASK_CUTSCENE);
+		case 1:
+			_cut._id = 0x0D; _cutPushId = 0x0D;
+			ph = 2;
+			return pushTask(TASK_CUTSCENE);
+		case 2:
+			_res.load("GLOBAL", Resource::OT_ICN);
+			_res.load("GLOBAL", Resource::OT_SPC);
+			_res.load("PERSO", Resource::OT_SPR);
+			_res.load_SPR_OFF("PERSO", _res._spr1);
+			_res.load_FIB("GLOBAL");
+			ph = 3;
+			break;
+		case 3: /* level loop top */
+			if (_pi.quit) {
+				ph = 99;
+				break;
+			}
+			if (_currentLevel == 7) {
+				_vid.fadeOutInit();
+				ph = 4;
+				return pushTask(TASK_FADE);
+			}
+			_vid.setTextPalette();
+			_vid.setPalette0xF();
+			_vid._unkPalSlot1 = 0;
+			_vid._unkPalSlot2 = 0;
+			_score = 0;
+			loadLevelData();
+			resetGameState();
+			_endLoop = false;
+			_frameTimestamp = getTimeStamp();
+			ph = 6;
+			return pushTask(TASK_MAINLOOP);
+		case 4:
+			_vid.setTextPalette();
+			_cut._id = 0x3D; _cutPushId = 0x3D;
+			ph = 5;
+			return pushTask(TASK_CUTSCENE);
+		case 5:
+			ph = 3;
+			break;
+		case 6: /* after a level's gameplay */
+			_pi.dirMask = 0;
+			_pi.use     = false;
+			_pi.weapon  = false;
+			_pi.action  = false;
+			ph = 3;
+			break;
+		default: /* 99 */
+			_res.free_TEXT();
+			_mix.free();
+			_res.fini();
+			return TR_POP;
+		}
+	}
+}
+
+int Game::mainLoopTaskStep() {
+	int &ph = _task[_taskTop].phase;
+	for (;;) {
+		switch (ph) {
+		case 0:
+			_state = STATE_MAIN_LOOP;
+			ph = 1;
+			break;
+		case 1: /* iteration top */
+			if (_pi.quit || _endLoop) {
+				return TR_POP;
+			}
+			if (_cut._id != 0xFFFF) {
+				_cutPushId = -1;
+				ph = 2;
+				return pushTask(TASK_CUTSCENE);
+			}
+			ph = 2;
+			break;
+		case 2:
+			if (_cut._id == 0x3D) {
+				ph = 3;
+				return pushTask(TASK_FINALSCORE);
+			}
+			ph = 4;
+			break;
+		case 3:
+			_endLoop = true;
+			ph = 1;
+			break;
+		case 4: /* death counter */
+			if (_deathCutsceneCounter) {
+				--_deathCutsceneCounter;
+				if (_deathCutsceneCounter == 0) {
+					_cut._id   = _cut._deathCutsceneId;
+					_cutPushId = _cut._deathCutsceneId;
+					ph = 5;
+					return pushTask(TASK_CUTSCENE);
+				}
+				ph = 12;
+				break;
+			}
+			ph = 6;
+			break;
+		case 5:
+			ph = 7;
+			return pushTask(TASK_CONTINUEABORT);
+		case 7:
+			if (!_caResult) {
+				_cut._id   = 0x41;
+				_cutPushId = 0x41;
+				ph = 8;
+				return pushTask(TASK_CUTSCENE);
+			}
+			if (_validSaveState) {
+				if (!loadGameState(0)) {
+					_endLoop = true;
+				}
+			} else {
+				loadLevelData();
+				resetGameState();
+			}
+			ph = 12;
+			break;
+		case 8:
+			_endLoop = true;
+			ph = 12;
+			break;
+		case 6: /* gameplay logic + draw + present */
+		{
+			memcpy(_vid._frontLayer, _vid._backLayer, Video::GAMESCREEN_SIZE);
+			pge_getInput();
+			pge_prepare();
+			col_prepareRoomState();
+			uint8_t oldLevel = _currentLevel;
+			for (uint16_t i = 0; i < _res._pgeNum; ++i) {
+				LivePGE *pge = _pge_liveTable2[i];
+				if (pge) {
+					_col_currentPiegeGridPosY = (pge->pos_y / 36) & ~1;
+					_col_currentPiegeGridPosX = (pge->pos_x + 8) >> 4;
+					pge_process(pge);
+				}
+			}
+			if (oldLevel != _currentLevel) {
+				if (_res._isDemo) {
+					_currentLevel = oldLevel;
+				}
+				ph = 9;
+				return pushTask(TASK_CHANGELEVEL);
+			}
+			if (_loadMap) {
+				if (_currentRoom == 0xFF || !hasLevelMap(_currentLevel, _pgeLive[0].room_location)) {
+					_cut._id = 6;
+					_deathCutsceneCounter = 1;
+				} else {
+					_currentRoom = _pgeLive[0].room_location;
+					loadLevelMap();
+					_loadMap = false;
+				}
+			}
+			prepareAnims();
+			drawAnims();
+			drawCurrentInventoryItem();
+			drawLevelTexts();
+			printLevelCode();
+			if (_blinkingConradCounter != 0) {
+				--_blinkingConradCounter;
+			}
+			_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+			if (_vid._shakeOffset != 0) {
+				_vid._shakeOffset = 0;
+			}
+			ph = 10;
+			return TR_FRAME;
+		}
+		case 9:
+			_pge_opTempVar1 = 0;
+			ph = 12;
+			break;
+		case 10: /* updateTiming: arm the 30Hz pace (post-present, matches original) */
+		{
+			int32_t delay = getTimeStamp() - _frameTimestamp;
+			int32_t pause = (_pi.dbgMask & PlayerInput::DF_FASTMODE) ? 20 : (1000 / 30);
+			pause -= delay;
+			if (pause > 0) {
+				_sleep += pause;
+			}
+			ph = 16;
+			break;
+		}
+		case 16: /* drain the pace, then the mainLoop tail */
+			if (sleepHold()) {
+				return TR_FRAME;
+			}
+			_frameTimestamp = getTimeStamp();
+			if (_textToDisplay != 0xFFFF) {
+				_stTextColor    = 0xE8;
+				_stStr          = _res.getGameString(_textToDisplay);
+				memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
+				_stSeg          = 0;
+				_stChunk.data   = NULL;
+				_stChunk.len    = 0;
+				_stPhase        = 0;
+				_stWaitSleeping = false;
+				ph = 11;
+				return pushTask(TASK_STORYTEXT);
+			}
+			ph = 11;
+			break;
+		case 11:
+			if (_pi.inventory_skip) {
+				_pi.inventory_skip = false;
+				ph = 13;
+				return pushTask(TASK_INVENTORY);
+			}
+			ph = 13;
+			break;
+		case 13:
+			if (_pi.escape) {
+				_pi.escape = false;
+				if (_demoBin != -1) {
+					_endLoop = true;
+					ph = 12;
+					break;
+				}
+				ph = 14;
+				return pushTask(TASK_CONFIG);
+			}
+			inp_handleSpecialKeys();
+			ph = 12;
+			break;
+		case 14:
+			if (_cpResult) {
+				_endLoop = true;
+			} else {
+				inp_handleSpecialKeys();
+			}
+			ph = 12;
+			break;
+		default: /* 12: iteration end */
+			if (_demoBin != -1 && _inp_demPos >= _res._demLen) {
+				_demoBin = -1;
+				_endLoop = true;
+			}
+			ph = 1;
+			break;
+		}
+	}
 }
 
 void Game::processEvents() {

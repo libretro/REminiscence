@@ -378,7 +378,7 @@ void retro_run(void)
    update_input();
 
    //EMULATE
-   game->tick();
+   game->runFrame();
 
    //VIDEO
    video_cb(game->getFrameBuffer(),

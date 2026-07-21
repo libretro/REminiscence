@@ -1190,6 +1190,93 @@ void Cutscene::mainLoop(uint16_t offset) {
 	}
 }
 
+/* Resolve the current _id to a cutscene and arm the VM. Returns true if there
+ * is an opcode stream to pump (mainLoopStep), false if there is nothing to
+ * play. Mirrors Cutscene::play()'s setup (minus the dead text-cutscene path). */
+bool Cutscene::playSetup() {
+	if (_id == 0xFFFF) {
+		return false;
+	}
+	_textCurBuf = NULL;
+	_creditsSequence = false;
+	prepare();
+	uint16_t cutName = _offsetsTable[_id * 2 + 0];
+	uint16_t cutOff  = _offsetsTable[_id * 2 + 1];
+	if (cutName == 0xFFFF && g_options.play_disabled_cutscenes) {
+		switch (_id) {
+		case 19:
+			cutName = 31;
+			break;
+		case 22:
+		case 23:
+		case 24:
+			cutName = 12;
+			break;
+		case 30:
+		case 31:
+			cutName = 14;
+			break;
+		}
+	}
+	if (_patchedOffsetsTable) {
+		for (int i = 0; _patchedOffsetsTable[i] != 255; i += 3) {
+			if (_patchedOffsetsTable[i] == _id) {
+				cutName = _patchedOffsetsTable[i + 1];
+				cutOff  = _patchedOffsetsTable[i + 2];
+				break;
+			}
+		}
+	}
+	if (cutName != 0xFFFF) {
+		load(cutName);
+		mainLoopInit(cutOff);
+		return true;
+	}
+	return false;
+}
+
+void Cutscene::playCreditsInit() {
+	_textCurPtr = _creditsDataDOS;
+	_textBuf[0] = 0xA;
+	_textCurBuf = _textBuf;
+	_creditsSequence = true;
+	_varText = 0;
+	_textUnk2 = 0;
+	_creditsTextCounter = 0;
+	_interrupted = false;
+	_credSeqPtr = _creditsCutSeq;
+	_credPumping = false;
+}
+
+/* One presented frame of the end credits: pumps the current credits cutscene,
+ * advancing to the next in _creditsCutSeq when it finishes. Returns true while
+ * running. */
+bool Cutscene::playCreditsStep() {
+	for (;;) {
+		if (_credPumping) {
+			if (mainLoopStep()) {
+				return true;
+			}
+			_credPumping = false;
+		}
+		if (_game->_pi.quit || _interrupted) {
+			_creditsSequence = false;
+			return false;
+		}
+		uint16_t cut_id = *_credSeqPtr++;
+		if (cut_id == 0xFFFF) {
+			_creditsSequence = false;
+			return false;
+		}
+		prepare();
+		uint16_t cutName = _offsetsTable[cut_id * 2 + 0];
+		uint16_t cutOff  = _offsetsTable[cut_id * 2 + 1];
+		load(cutName);
+		mainLoopInit(cutOff);
+		_credPumping = true;
+	}
+}
+
 void Cutscene::load(uint16_t cutName) {
 	assert(cutName != 0xFFFF);
 	const char *name = _namesTable[cutName & 0xFF];
