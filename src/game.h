@@ -136,6 +136,11 @@ struct Game {
 	Color           _caCol;
 	bool            _caResume;
 	bool            _caResult;
+	/* resume state for handleConfigPanel step */
+	uint8_t         _cpColors[4];
+	int             _cpCurrent;
+	bool            _cpSleeping;
+	bool            _cpResult;
 
 	PlayerInput _pi;
 	bool        running;
@@ -190,6 +195,7 @@ struct Game {
 	void showFinalScore();
 	StepResult showFinalScoreStep();
 	bool handleConfigPanel();
+	StepResult handleConfigPanelStep();
 	bool handleContinueAbort();
 	StepResult handleContinueAbortStep();
 

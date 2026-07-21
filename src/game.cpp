@@ -473,6 +473,99 @@ void Game::showFinalScore() {
 	}
 }
 
+/* One presented frame of the save/load/abort config panel. Unlike the
+ * continue/abort screen, input is sampled *after* the present + sleep(80) via
+ * inp_update() (which also advances demo playback, so it must run exactly once
+ * per iteration). That post-sleep handling folds into the following present
+ * frame, matching the libco control flow: iteration N's input is processed on
+ * the same host frame that draws iteration N+1. Frame counts, the once-per-
+ * iteration inp_update(), save-slot navigation and the abort return value are
+ * all identical to the original. */
+StepResult Game::handleConfigPanelStep() {
+	enum {
+		MENU_ITEM_LOAD = 1, MENU_ITEM_SAVE = 2, MENU_ITEM_ABORT = 3
+	};
+	const int y = 10;
+
+	if (_cpSleeping) {
+		if (sleepHold()) {
+			return STEP_RUNNING; /* draining sleep(80) */
+		}
+		_cpSleeping = false;
+		/* post-sleep input, once per iteration */
+		inp_update();
+		{
+			int prev = _cpCurrent;
+			if (_pi.dirMask & PlayerInput::DIR_UP) {
+				_pi.dirMask &= ~PlayerInput::DIR_UP;
+				_cpCurrent = (_cpCurrent + 3) % 4;
+			}
+			if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+				_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+				_cpCurrent = (_cpCurrent + 1) % 4;
+			}
+			if (_pi.dirMask & PlayerInput::DIR_LEFT) {
+				_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+				--_stateSlot;
+				if (_stateSlot < 1) {
+					_stateSlot = 1;
+				}
+			}
+			if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
+				_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+				++_stateSlot;
+				if (_stateSlot > 99) {
+					_stateSlot = 99;
+				}
+			}
+			if (prev != _cpCurrent) {
+				SWAP(_cpColors[prev], _cpColors[_cpCurrent]);
+			}
+		}
+		if (_pi.use) {
+			_pi.use = false;
+			switch (_cpCurrent) {
+			case MENU_ITEM_LOAD:
+				_pi.load = true;
+				break;
+			case MENU_ITEM_SAVE:
+				_pi.save = true;
+				break;
+			}
+			_cpResult = (_cpCurrent == MENU_ITEM_ABORT);
+			return STEP_DONE;
+		}
+		if (_pi.escape) {
+			_pi.escape = false;
+			_cpResult = (_cpCurrent == MENU_ITEM_ABORT);
+			return STEP_DONE;
+		}
+	}
+	if (_pi.quit) {
+		_cpResult = (_cpCurrent == MENU_ITEM_ABORT);
+		return STEP_DONE;
+	}
+	_menu.drawString(_res.getMenuString(LocaleData::LI_18_RESUME_GAME), y + 2, 9, _cpColors[0]);
+	_menu.drawString(_res.getMenuString(LocaleData::LI_20_LOAD_GAME), y + 4, 9, _cpColors[1]);
+	_menu.drawString(_res.getMenuString(LocaleData::LI_21_SAVE_GAME), y + 6, 9, _cpColors[2]);
+	_menu.drawString(_res.getMenuString(LocaleData::LI_19_ABORT_GAME), y + 8, 9, _cpColors[3]);
+	{
+		char buf[30];
+		snprintf(buf, sizeof(buf), "%s : %d-%02d", _res.getMenuString(LocaleData::LI_22_SAVE_SLOT),
+		         _currentLevel + 1, _stateSlot);
+		_menu.drawString(buf, y + 10, 9, 1);
+	}
+	/* updateScreen() sans yield: copyRect + shake reset; the yield is the
+	 * STEP_RUNNING return below. */
+	_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+	if (_vid._shakeOffset != 0) {
+		_vid._shakeOffset = 0;
+	}
+	_sleep += 80;
+	_cpSleeping = true;
+	return STEP_RUNNING;
+}
+
 bool Game::handleConfigPanel() {
 	const int x = 7;
 	const int y = 10;
@@ -519,69 +612,17 @@ bool Game::handleConfigPanel() {
 	_menu._charVar1   = 0xE2;
 	_menu._charVar2   = 0xEE;
 
-	enum {
-		MENU_ITEM_LOAD = 1, MENU_ITEM_SAVE = 2, MENU_ITEM_ABORT = 3
-	};
-	uint8_t  colors[] = {2, 3, 3, 3};
-	int      current  = 0;
-	while (!_pi.quit) {
-		_menu.drawString(_res.getMenuString(LocaleData::LI_18_RESUME_GAME), y + 2, 9, colors[0]);
-		_menu.drawString(_res.getMenuString(LocaleData::LI_20_LOAD_GAME), y + 4, 9, colors[1]);
-		_menu.drawString(_res.getMenuString(LocaleData::LI_21_SAVE_GAME), y + 6, 9, colors[2]);
-		_menu.drawString(_res.getMenuString(LocaleData::LI_19_ABORT_GAME), y + 8, 9, colors[3]);
-		char buf[30];
-		snprintf(buf, sizeof(buf), "%s : %d-%02d", _res.getMenuString(LocaleData::LI_22_SAVE_SLOT), _currentLevel + 1,
-		         _stateSlot);
-		_menu.drawString(buf, y + 10, 9, 1);
-
-		_vid.updateScreen();
-		sleep(80);
-		inp_update();
-
-		int prev = current;
-		if (_pi.dirMask & PlayerInput::DIR_UP) {
-			_pi.dirMask &= ~PlayerInput::DIR_UP;
-			current = (current + 3) % 4;
-		}
-		if (_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
-			current = (current + 1) % 4;
-		}
-		if (_pi.dirMask & PlayerInput::DIR_LEFT) {
-			_pi.dirMask &= ~PlayerInput::DIR_LEFT;
-			--_stateSlot;
-			if (_stateSlot < 1) {
-				_stateSlot = 1;
-			}
-		}
-		if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
-			_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
-			++_stateSlot;
-			if (_stateSlot > 99) {
-				_stateSlot = 99;
-			}
-		}
-		if (prev != current) {
-			SWAP(colors[prev], colors[current]);
-		}
-		if (_pi.use) {
-			_pi.use = false;
-			switch (current) {
-			case MENU_ITEM_LOAD:
-				_pi.load = true;
-				break;
-			case MENU_ITEM_SAVE:
-				_pi.save = true;
-				break;
-			}
-			break;
-		}
-		if (_pi.escape) {
-			_pi.escape = false;
-			break;
-		}
+	_cpColors[0] = 2;
+	_cpColors[1] = 3;
+	_cpColors[2] = 3;
+	_cpColors[3] = 3;
+	_cpCurrent   = 0;
+	_cpSleeping  = false;
+	_cpResult    = false;
+	while (handleConfigPanelStep() == STEP_RUNNING) {
+		yield();
 	}
-	return (current == MENU_ITEM_ABORT);
+	return _cpResult;
 }
 
 /* One presented frame of the continue/abort screen. Same shape as the fade:
