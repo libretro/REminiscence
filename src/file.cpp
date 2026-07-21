@@ -11,83 +11,67 @@
 #include "file.h"
 #include "fs.h"
 
-/* Forward declarations */
-extern "C" {
-
-RFILE* rfopen(const char *path, const char *mode);
-int64_t rfread(void* buffer,
-   size_t elem_size, size_t elem_count, RFILE* stream);
-int64_t rfseek(RFILE* stream, int64_t offset, int origin);
-int64_t rftell(RFILE* stream);
-int rfclose(RFILE* stream);
-int64_t rfwrite(void const* buffer,
-   size_t elem_size, size_t elem_count, RFILE* stream);
-
-}
-
 struct StdioFile : File_impl {
 	RFILE *_fp;
 
 	StdioFile() : _fp(0) {}
 
 	bool open(const char *path, const char *mode)
-   {
+	{
+		/* Route all real-file I/O through the libretro VFS. Only read vs
+		 * write is meaningful here (the callers pass "rb"/"wb"/"zrb"; the
+		 * legacy 'z'/'b' characters are inert). */
+		unsigned access = strchr(mode, 'w')
+			? RETRO_VFS_FILE_ACCESS_WRITE
+			: RETRO_VFS_FILE_ACCESS_READ;
 		_ioErr = false;
-		_fp    = rfopen(path, mode);
+		_fp    = filestream_open(path, access, RETRO_VFS_FILE_ACCESS_HINT_NONE);
 		return (_fp != 0);
 	}
 
 	void close()
-   {
+	{
 		if (_fp)
-      {
-			rfclose(_fp);
+		{
+			filestream_close(_fp);
 			_fp = 0;
 		}
 	}
 
 	uint32_t size()
-   {
-		uint32_t sz = 0;
-		if (_fp)
-      {
-			int pos = rftell(_fp);
-			rfseek(_fp, 0, SEEK_END);
-			sz = rftell(_fp);
-			rfseek(_fp, pos, SEEK_SET);
-		}
-		return sz;
+	{
+		return _fp ? (uint32_t)filestream_get_size(_fp) : 0;
 	}
 
-   void seek(int32_t off)
-   {
-      if (_fp)
-         rfseek(_fp, off, SEEK_SET);
-   }
+	void seek(int32_t off)
+	{
+		if (_fp)
+			filestream_seek(_fp, off, RETRO_VFS_SEEK_POSITION_START);
+	}
 
 	uint32_t read(void *ptr, uint32_t len)
-   {
+	{
 		if (_fp)
-      {
-			uint32_t r = rfread(ptr, 1, len, _fp);
-			if (r != len)
+		{
+			int64_t r = filestream_read(_fp, ptr, len);
+			if (r != (int64_t)len)
 				_ioErr = true;
-			return r;
+			return (uint32_t)r;
 		}
 		return 0;
 	}
 
 	uint32_t write(const void *ptr, uint32_t len)
-   {
-      if (_fp)
-      {
-         uint32_t r = rfwrite(ptr, 1, len, _fp);
-         if (r != len)
-            _ioErr = true;
-         return r;
-      }
-      return 0;
-   }
+	{
+		if (_fp)
+		{
+			int64_t r = filestream_write(_fp, ptr, len);
+			if (r != (int64_t)len)
+				_ioErr = true;
+			return (uint32_t)r;
+		}
+		return 0;
+	}
 };
 
 File::File()

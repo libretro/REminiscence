@@ -4,15 +4,9 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#endif
 #include <stdio.h>
+#include <streams/file_stream.h>  /* pulls in vfs/vfs_implementation.h (dir API) */
+#include <retro_miscellaneous.h>  /* PATH_MAX_LENGTH */
 #include "fs.h"
 
 struct FileName
@@ -101,52 +95,28 @@ struct FileSystem_impl
    void getPathListFromDirectory(const char *dir);
 };
 
-#ifdef _WIN32
+/* Directory enumeration through the libretro VFS -- one implementation for all
+ * platforms (replaces the previous Win32 FindFirstFile / POSIX opendir+stat
+ * code paths). */
 void FileSystem_impl::getPathListFromDirectory(const char *dir) {
-	WIN32_FIND_DATAA findData;
-	char searchPath[MAX_PATH];
-	snprintf(searchPath, sizeof(searchPath), "%s/*", dir);
-	HANDLE h = FindFirstFileA(searchPath, &findData);
-	if (h) {
-		do {
-			if (findData.cFileName[0] == '.') {
+	libretro_vfs_implementation_dir *d = retro_vfs_opendir_impl(dir, true);
+	if (d) {
+		while (retro_vfs_readdir_impl(d)) {
+			const char *name = retro_vfs_dirent_get_name_impl(d);
+			if (!name || name[0] == '.') {
 				continue;
 			}
-			char filePath[MAX_PATH];
-			snprintf(filePath, sizeof(filePath), "%s/%s", dir, findData.cFileName);
-			if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			char filePath[PATH_MAX_LENGTH];
+			snprintf(filePath, sizeof(filePath), "%s/%s", dir, name);
+			if (retro_vfs_dirent_is_dir_impl(d)) {
 				getPathListFromDirectory(filePath);
 			} else {
-				addPath(dir, findData.cFileName);
-			}
-		} while (FindNextFileA(h, &findData));
-		FindClose(h);
-	}
-}
-#else
-void FileSystem_impl::getPathListFromDirectory(const char *dir) {
-	DIR *d = opendir(dir);
-	if (d) {
-		dirent *de;
-		while ((de = readdir(d)) != NULL) {
-			if (de->d_name[0] == '.') {
-				continue;
-			}
-			char filePath[MAXPATHLEN];
-			snprintf(filePath, sizeof(filePath), "%s/%s", dir, de->d_name);
-			struct stat st;
-			if (stat(filePath, &st) == 0) {
-				if (S_ISDIR(st.st_mode)) {
-					getPathListFromDirectory(filePath);
-				} else {
-					addPath(dir, de->d_name);
-				}
+				addPath(dir, name);
 			}
 		}
-		closedir(d);
+		retro_vfs_closedir_impl(d);
 	}
 }
-#endif
 
 FileSystem::FileSystem(const char *dataPath) {
 	_impl = new FileSystem_impl;
