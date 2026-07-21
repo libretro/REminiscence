@@ -2241,14 +2241,20 @@ void Game::loadState(File *f) {
 	off    = f->readUint32BE();
 	if (off == 0xFFFFFFFF) {
 		_col_slots2Cur = 0;
-	} else {
+	} else if (off <= 256) {
 		_col_slots2Cur = &_col_slots2[0] + off;
+	} else {
+		_col_slots2Cur = 0;
+		f->setIoErr();
 	}
 	off    = f->readUint32BE();
 	if (off == 0xFFFFFFFF) {
 		_col_slots2Next = 0;
-	} else {
+	} else if (off <= 256) {
 		_col_slots2Next = &_col_slots2[0] + off;
+	} else {
+		_col_slots2Next = 0;
+		f->setIoErr();
 	}
 	for (i = 0; i < _res._pgeNum; ++i) {
 		LivePGE *pge = &_pgeLive[i];
@@ -2270,14 +2276,20 @@ void Game::loadState(File *f) {
 		off = f->readUint32BE();
 		if (off == 0xFFFFFFFF) {
 			pge->next_PGE_in_room = 0;
-		} else {
+		} else if (off < 256) {
 			pge->next_PGE_in_room = &_pgeLive[0] + off;
+		} else {
+			pge->next_PGE_in_room = 0;
+			f->setIoErr();
 		}
 		off = f->readUint32BE();
 		if (off == 0xFFFFFFFF) {
 			pge->init_PGE = 0;
-		} else {
+		} else if (off < 256) {
 			pge->init_PGE = &_res._pgeInit[0] + off;
+		} else {
+			pge->init_PGE = 0;
+			f->setIoErr();
 		}
 	}
 	f->read(&_res._ctData[0x100], 0x1C00);
@@ -2285,14 +2297,20 @@ void Game::loadState(File *f) {
 		off = f->readUint32BE();
 		if (off == 0xFFFFFFFF) {
 			cs2->next_slot = 0;
-		} else {
+		} else if (off < 256) {
 			cs2->next_slot = &_col_slots2[0] + off;
+		} else {
+			cs2->next_slot = 0;
+			f->setIoErr();
 		}
 		off            = f->readUint32BE();
 		if (off == 0xFFFFFFFF) {
 			cs2->unk2 = 0;
-		} else {
+		} else if (off < 0x1C00) {
 			cs2->unk2 = &_res._ctData[0x100] + off;
+		} else {
+			cs2->unk2 = 0;
+			f->setIoErr();
 		}
 		cs2->data_size = f->readByte();
 		f->read(cs2->data_buf, 0x10);

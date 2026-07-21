@@ -38,6 +38,7 @@ struct File {
 	void close();
 	void cleanup();
 	bool ioErr() const;
+	void setIoErr();
 	uint32_t size();
 	void seek(int32_t off);
 	uint32_t read(void *ptr, uint32_t len);

@@ -150,6 +150,11 @@ bool File::ioErr() const
 	return _impl->_ioErr;
 }
 
+void File::setIoErr()
+{
+	_impl->_ioErr = true;
+}
+
 uint32_t File::size() {
 	return _impl->size();
 }
