@@ -88,7 +88,7 @@ void Menu::handleInfoScreen() {
 	}
 	_vid->updateScreen();
 	do {
-		_game->sleep(EVENTS_DELAY);
+		_game->addPaceDelay(EVENTS_DELAY);
 		_game->processEvents();
 		if (_game->_pi.escape) {
 			_game->_pi.escape = false;
@@ -117,7 +117,7 @@ void Menu::handleSkillScreen() {
 		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 19, 14, colors[skill_level][2]);
 
 		_vid->updateScreen();
-		_game->sleep(EVENTS_DELAY);
+		_game->addPaceDelay(EVENTS_DELAY);
 		_game->processEvents();
 
 		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {
@@ -167,7 +167,7 @@ bool Menu::handlePasswordScreen() {
 		_vid->PC_drawChar(0x20, 21, len + 15, false);
 
 		_vid->updateScreen();
-		_game->sleep(EVENTS_DELAY);
+		_game->addPaceDelay(EVENTS_DELAY);
 		_game->processEvents();
 		char c = _game->_pi.lastChar;
 		if (c != 0) {
@@ -234,7 +234,7 @@ bool Menu::handleLevelScreen() {
 		drawString(_res->getMenuString(LocaleData::LI_15_EXPERT), 23, 24, (currentSkill == 2) ? 2 : 3);
 
 		_vid->updateScreen();
-		_game->sleep(EVENTS_DELAY);
+		_game->addPaceDelay(EVENTS_DELAY);
 		_game->processEvents();
 
 		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {
@@ -344,7 +344,7 @@ void Menu::handleTitleScreen() {
 		}
 
 		_vid->updateScreen();
-		_game->sleep(EVENTS_DELAY);
+		_game->addPaceDelay(EVENTS_DELAY);
 		_game->processEvents();
 
 		if (_game->_pi.dirMask & PlayerInput::DIR_UP) {

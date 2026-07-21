@@ -174,7 +174,13 @@ struct Game {
 	Task _task[12];
 	int  _taskTop;
 	int  _cutPushId; /* original playCutscene() id arg for the cutscene task */
-	uint32_t    _sleep;
+	/* Frame-pacing accumulator (milliseconds), formerly _sleep. Subsystems add
+	 * their timed delay via addPaceDelay(); paceHoldFrame() drains one host
+	 * frame quantum (MS_PER_FRAME) per runFrame(), re-presenting the current
+	 * image while any remains. Kept in ms (not a frame count) so sub-quantum
+	 * delays -- e.g. the ~13ms gameplay pause that yields 30Hz on a 50Hz host --
+	 * accumulate their fractional remainder correctly. */
+	uint32_t    _paceAccumMs;
 	uint32_t    _lastTimestamp;
 	int         _state;
 
@@ -186,7 +192,7 @@ struct Game {
 	void runFrame();
 
 	void yield();
-	void sleep(int ms);
+	void addPaceDelay(int ms);
 
 	/* frame-driver task steps */
 	int  stepTask();
@@ -200,12 +206,12 @@ struct Game {
 	int  configTaskStep();
 	int  inventoryTaskStep();
 	/* Consume one host frame's worth of pending sleep time from the shared
-	 * _sleep accumulator. Returns true while there is still sleep time to
+	 * _paceAccumMs accumulator. Returns true while there is still sleep time to
 	 * burn (the caller should re-present the current frame and return
 	 * STEP_RUNNING), false once the subsystem may advance its logic again.
-	 * Uses the exact same accumulator and quantum as sleep(), so pacing --
+	 * Uses the exact same accumulator and quantum as addPaceDelay(), so pacing --
 	 * including fractional carry across calls -- is bit-identical. */
-	bool sleepHold();
+	bool paceHoldFrame();
 	void processEvents();
 
 	uint32_t getTimeStamp();

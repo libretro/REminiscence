@@ -318,13 +318,13 @@ bool SeqPlayer::playStep() {
 		case 2: {
 			const int diff = _seqNextFrameTs - _game->getTimeStamp();
 			if (diff > 0) {
-				_game->_sleep += diff;
+				_game->_paceAccumMs += diff;
 			}
 			_seqPhase = 3;
 			break;
 		}
 		default: /* case 3: drain inter-frame sleep */
-			if (_game->sleepHold()) {
+			if (_game->paceHoldFrame()) {
 				return true;
 			}
 			_seqPhase = 0;

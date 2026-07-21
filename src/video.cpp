@@ -51,14 +51,14 @@ void Video::fadeOutInit()
 
 /* One presented frame of the palette fade-out. Reproduces the original loop
  * frame-for-frame: on a non-sleeping frame it darkens the palette one notch,
- * presents (the old updateScreen yield) and schedules sleep(50); the following
+ * presents (the old updateScreen yield) and schedules addPaceDelay(50); the following
  * frames drain that sleep via the shared accumulator (re-presenting the same
- * image) before the next notch. Because it shares _sleep with sleep(), the
+ * image) before the next notch. Because it shares _paceAccumMs with addPaceDelay(), the
  * fractional 50ms/20ms carry is identical to the libco version. */
 StepResult Video::fadeOutStep()
 {
-	if (_game->sleepHold())
-		return STEP_RUNNING; /* draining sleep(50): re-present current frame */
+	if (_game->paceHoldFrame())
+		return STEP_RUNNING; /* draining addPaceDelay(50): re-present current frame */
 
 	if (_fadeStep < 0)
 		return STEP_DONE;
@@ -79,7 +79,7 @@ StepResult Video::fadeOutStep()
 	copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _frontLayer, 256);
 	if (_shakeOffset != 0)
 		_shakeOffset = 0;
-	_game->_sleep += 50; /* == sleep(50), minus the yielding */
+	_game->_paceAccumMs += 50; /* == addPaceDelay(50), minus the yielding */
 	--_fadeStep;
 	return STEP_RUNNING;
 }

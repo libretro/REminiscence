@@ -33,7 +33,7 @@ Game *Game::instance;
 Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, this, &_vid), _menu(&_res, this, &_vid),
 	  _mix(fs, this), _res(fs, lang), _seq(&_vid, this, &_mix), _vid(&_res, this),
-	  _fs(fs), _savePath(savePath), _sleep(0), _lastTimestamp(0), _state(STATE_INIT) {
+	  _fs(fs), _savePath(savePath), _paceAccumMs(0), _lastTimestamp(0), _state(STATE_INIT) {
 	_stateSlot     = 1;
 	_inp_demPos    = 0;
 	_skillLevel    = _menu._skill = 1;
@@ -202,14 +202,19 @@ int Game::stepTask() {
 void Game::yield() {
 }
 
-void Game::sleep(int ms) {
-	_sleep += ms;
+/* Add a timed delay (ms) to be consumed by paceHoldFrame(). Formerly sleep();
+ * with libco gone there is no thread sleep -- the delay is paid out as held
+ * frames. */
+void Game::addPaceDelay(int ms) {
+	_paceAccumMs += ms;
 }
 
-bool Game::sleepHold() {
+/* Consume one host frame quantum of pending pace delay. Returns true while a
+ * whole quantum remains (the driver should present/hold another frame). */
+bool Game::paceHoldFrame() {
 	const int ms_per_frame = 1000 / getFrameRate();
-	if ((int)_sleep >= ms_per_frame) {
-		_sleep -= ms_per_frame;
+	if ((int)_paceAccumMs >= ms_per_frame) {
+		_paceAccumMs -= ms_per_frame;
 		return true;
 	}
 	return false;
@@ -640,13 +645,13 @@ int Game::mainLoopTaskStep() {
 			int32_t pause = (_pi.dbgMask & PlayerInput::DF_FASTMODE) ? 20 : (1000 / 30);
 			pause -= delay;
 			if (pause > 0) {
-				_sleep += pause;
+				_paceAccumMs += pause;
 			}
 			ph = 16;
 			break;
 		}
 		case 16: /* drain the pace, then the mainLoop tail */
-			if (sleepHold()) {
+			if (paceHoldFrame()) {
 				return TR_FRAME;
 			}
 			_frameTimestamp = getTimeStamp();
@@ -830,7 +835,7 @@ void Game::updateTiming() {
 	int32_t          pause   = (_pi.dbgMask & PlayerInput::DF_FASTMODE) ? 20 : (1000 / frameHz);
 	pause -= delay;
 	if (pause > 0) {
-		sleep(pause);
+		addPaceDelay(pause);
 	}
 	_frameTimestamp = getTimeStamp();
 }
@@ -961,15 +966,15 @@ StepResult Game::showFinalScoreStep() {
 		return STEP_DONE;
 	}
 	if (_finalScoreStarted) {
-		/* frame right after a present: input check + start of sleep(100) */
+		/* frame right after a present: input check + start of addPaceDelay(100) */
 		_finalScoreStarted = false;
 		if (_pi.use) {
 			_pi.use = false;
 			return STEP_DONE;
 		}
-		_sleep += 100;
+		_paceAccumMs += 100;
 	}
-	if (sleepHold()) {
+	if (paceHoldFrame()) {
 		return STEP_RUNNING; /* still sleeping: re-present current frame */
 	}
 	/* advance one iteration: (re)draw and present the score screen */
@@ -993,7 +998,7 @@ void Game::showFinalScore() {
 }
 
 /* One presented frame of the save/load/abort config panel. Unlike the
- * continue/abort screen, input is sampled *after* the present + sleep(80) via
+ * continue/abort screen, input is sampled *after* the present + addPaceDelay(80) via
  * inp_update() (which also advances demo playback, so it must run exactly once
  * per iteration). That post-sleep handling folds into the following present
  * frame, matching the libco control flow: iteration N's input is processed on
@@ -1007,8 +1012,8 @@ StepResult Game::handleConfigPanelStep() {
 	const int y = 10;
 
 	if (_cpSleeping) {
-		if (sleepHold()) {
-			return STEP_RUNNING; /* draining sleep(80) */
+		if (paceHoldFrame()) {
+			return STEP_RUNNING; /* draining addPaceDelay(80) */
 		}
 		_cpSleeping = false;
 		/* post-sleep input, once per iteration */
@@ -1080,7 +1085,7 @@ StepResult Game::handleConfigPanelStep() {
 	if (_vid._shakeOffset != 0) {
 		_vid._shakeOffset = 0;
 	}
-	_sleep += 80;
+	_paceAccumMs += 80;
 	_cpSleeping = true;
 	return STEP_RUNNING;
 }
@@ -1145,12 +1150,12 @@ bool Game::handleConfigPanel() {
 }
 
 /* One presented frame of the continue/abort screen. Same shape as the fade:
- * the loop body draws + presents once (copyRect+yield), then burns sleep(100)
+ * the loop body draws + presents once (copyRect+yield), then burns addPaceDelay(100)
  * before the next iteration. The post-present work (0xE4 colour pulse, timeout
  * decrement, background restore) is applied on the resume frame; because the
  * intervening sleep frames re-present the framebuffer (not the freshly drawn
  * _frontLayer), doing it there is observationally identical to the original,
- * which applied it after sleep() returned. Frame count per iteration and the
+ * which applied it after addPaceDelay() returned. Frame count per iteration and the
  * once-per-iteration input handling are preserved exactly. */
 StepResult Game::handleContinueAbortStep() {
 	static const int COLOR_STEP = 8;
@@ -1172,12 +1177,12 @@ StepResult Game::handleContinueAbortStep() {
 			_caCol.g -= COLOR_STEP;
 		}
 		_vid.setPaletteEntry(0xE4, &_caCol);
-		_sleep += 100;
+		_paceAccumMs += 100;
 		--_caTimeout;
 		memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
 	}
-	if (sleepHold()) {
-		return STEP_RUNNING; /* draining sleep(100): re-present current frame */
+	if (paceHoldFrame()) {
+		return STEP_RUNNING; /* draining addPaceDelay(100): re-present current frame */
 	}
 	if (!(_caTimeout >= 0 && !_pi.quit)) {
 		_caResult = false;
@@ -1294,7 +1299,7 @@ static int getLineLength(const uint8_t *str) {
 
 /* One presented frame of the per-segment story-text display. Outer segments
  * loop over the string; each draws its text + plays its VCE speech, presents
- * once (ST_DRAW), then waits (ST_WAIT) on sleep(80) until the speech finishes
+ * once (ST_DRAW), then waits (ST_WAIT) on addPaceDelay(80) until the speech finishes
  * or inventory_skip. The wait mirrors the config-panel post-sleep shape:
  * inp_update() runs once per wait iteration (demo determinism) and the
  * presented-frame count matches the libco loop. */
@@ -1354,7 +1359,7 @@ StepResult Game::drawStoryTextsStep() {
 				if (!_pi.inventory_skip && !_pi.quit
 				    && !(_stChunk.data && !_mix.isPlaying(&_stChunk))) {
 					inp_update();
-					_sleep += 80;
+					_paceAccumMs += 80;
 					_stWaitSleeping = true;
 					/* fall through to drain (this frame == first sleep frame) */
 				} else {
@@ -1374,8 +1379,8 @@ StepResult Game::drawStoryTextsStep() {
 					break; /* loop -> next segment in the same call */
 				}
 			}
-			if (sleepHold()) {
-				return STEP_RUNNING; /* draining sleep(80) */
+			if (paceHoldFrame()) {
+				return STEP_RUNNING; /* draining addPaceDelay(80) */
 			}
 			_stWaitSleeping = false;
 			break; /* loop -> ST_WAIT re-check (next wait iteration) */
@@ -1947,15 +1952,15 @@ void Game::changeLevel() {
 }
 
 /* One presented frame of the inventory screen. Same post-sleep-input shape as
- * the config panel (draw; updateScreen; sleep(80); inp_update; handle input),
+ * the config panel (draw; updateScreen; addPaceDelay(80); inp_update; handle input),
  * so it converts identically: iteration N's input is processed on the host
  * frame that draws iteration N+1, inp_update() runs once per iteration, and the
  * presented-frame count matches the libco version. Item-list state and the
  * cursor/line/score-toggle selection are held in members. */
 StepResult Game::handleInventoryStep() {
 	if (_invSleeping) {
-		if (sleepHold()) {
-			return STEP_RUNNING; /* draining sleep(80) */
+		if (paceHoldFrame()) {
+			return STEP_RUNNING; /* draining addPaceDelay(80) */
 		}
 		_invSleeping = false;
 		inp_update();
@@ -2059,7 +2064,7 @@ StepResult Game::handleInventoryStep() {
 	if (_vid._shakeOffset != 0) {
 		_vid._shakeOffset = 0;
 	}
-	_sleep += 80;
+	_paceAccumMs += 80;
 	_invSleeping = true;
 	return STEP_RUNNING;
 }

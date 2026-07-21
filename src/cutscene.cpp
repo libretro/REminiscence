@@ -25,7 +25,7 @@ void Cutscene::sync() {
 	const int32_t delay = _game->getTimeStamp() - _tstamp;
 	const int32_t pause = _frameDelay * TIMER_SLICE - delay;
 	if (pause > 0) {
-		_game->sleep(pause);
+		_game->addPaceDelay(pause);
 	}
 	_tstamp = _game->getTimeStamp();
 }
@@ -792,7 +792,7 @@ void Cutscene::op_drawStringAtPos() {
 					_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
 					_game->yield();
 				} else {
-					_game->sleep(15);
+					_game->addPaceDelay(15);
 				}
 			}
 		}
@@ -862,7 +862,7 @@ uint16_t Cutscene::fetchNextCmdWord() {
 }
 
 /* setPalette() as a resumable sub-state-machine. Phase 0 arms the sync pause
- * (shared _sleep accumulator); phase 1 drains it (each held frame re-presents
+ * (shared _paceAccumMs accumulator); phase 1 drains it (each held frame re-presents
  * the current framebuffer, i.e. the previous cutscene frame); phase 2 commits
  * the palette, swaps and copyRect's the new frame and presents it once. Returns
  * true while another presented frame is owed, false once complete. Frame count
@@ -874,13 +874,13 @@ bool Cutscene::setPaletteStep() {
 			const int32_t delay = _game->getTimeStamp() - _tstamp;
 			const int32_t pause = _frameDelay * TIMER_SLICE - delay;
 			if (pause > 0) {
-				_game->_sleep += pause;
+				_game->_paceAccumMs += pause;
 			}
 		}
 		_spPhase = 1;
 		/* fall through */
 	case 1:
-		if (_game->sleepHold()) {
+		if (_game->paceHoldFrame()) {
 			return true;
 		}
 		_tstamp = _game->getTimeStamp();
@@ -904,13 +904,13 @@ bool Cutscene::syncStep() {
 			const int32_t delay = _game->getTimeStamp() - _tstamp;
 			const int32_t pause = _frameDelay * TIMER_SLICE - delay;
 			if (pause > 0) {
-				_game->_sleep += pause;
+				_game->_paceAccumMs += pause;
 			}
 		}
 		_spPhase = 1;
 		/* fall through */
 	default:
-		if (_game->sleepHold()) {
+		if (_game->paceHoldFrame()) {
 			return true;
 		}
 		_tstamp = _game->getTimeStamp();
@@ -1018,7 +1018,7 @@ bool Cutscene::op_drawStringAtPos_step() {
 						_stepPhase = 2; /* yield one frame */
 						return true;
 					} else {
-						_game->_sleep += 15; /* sleep(15) */
+						_game->_paceAccumMs += 15; /* addPaceDelay(15) */
 						_stepPhase = 1;
 					}
 				}
@@ -1028,8 +1028,8 @@ bool Cutscene::op_drawStringAtPos_step() {
 			return false; /* no suspend taken */
 		}
 	}
-	if (_stepPhase == 1) { /* draining sleep(15) */
-		if (_game->sleepHold()) {
+	if (_stepPhase == 1) { /* draining addPaceDelay(15) */
+		if (_game->paceHoldFrame()) {
 			return true;
 		}
 		_stepPhase = 0;
@@ -1319,7 +1319,7 @@ void Cutscene::playCredits() {
 }
 
 /* One presented frame of the text-cutscene wait loop. The original spins on
- * sleep(TIMER_SLICE) until inventory_skip; since its body has no side effects,
+ * addPaceDelay(TIMER_SLICE) until inventory_skip; since its body has no side effects,
  * one step() call reproduces exactly one host frame of that loop (accumulate
  * TIMER_SLICE up to a frame quantum, then present). NOTE: dead in this build
  * (use_text_cutscenes is never enabled) -- converted only so libco can be
@@ -1334,10 +1334,10 @@ bool Cutscene::playTextStep() {
 	}
 	{
 		const int mpf = 1000 / _game->getFrameRate();
-		while ((int)_game->_sleep < mpf) {
-			_game->_sleep += TIMER_SLICE;
+		while ((int)_game->_paceAccumMs < mpf) {
+			_game->_paceAccumMs += TIMER_SLICE;
 		}
-		_game->_sleep -= mpf;
+		_game->_paceAccumMs -= mpf;
 	}
 	return true;
 }
