@@ -150,6 +150,13 @@ struct Game {
 	int             _invCurrentLine;
 	bool            _invDisplayScore;
 	bool            _invSleeping;
+	/* resume state for drawStoryTexts step */
+	const uint8_t  *_stStr;
+	uint8_t         _stTextColor;
+	int             _stSeg;
+	MixerChunk      _stChunk;
+	int             _stPhase;
+	bool            _stWaitSleeping;
 
 	PlayerInput _pi;
 	bool        running;
@@ -211,6 +218,7 @@ struct Game {
 	void printSaveStateCompleted();
 	void drawLevelTexts();
 	void drawStoryTexts();
+	StepResult drawStoryTextsStep();
 	void prepareAnims();
 	void prepareAnimsHelper(LivePGE *pge, int16_t dx, int16_t dy);
 	void drawAnims();

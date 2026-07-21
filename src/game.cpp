@@ -773,67 +773,109 @@ static int getLineLength(const uint8_t *str) {
 	return len;
 }
 
-void Game::drawStoryTexts() {
-	if (_textToDisplay != 0xFFFF) {
-		uint8_t       textColor = 0xE8;
-		const uint8_t *str      = _res.getGameString(_textToDisplay);
-		memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
-		int textSpeechSegment = 0;
-		while (!_pi.quit) {
+/* One presented frame of the per-segment story-text display. Outer segments
+ * loop over the string; each draws its text + plays its VCE speech, presents
+ * once (ST_DRAW), then waits (ST_WAIT) on sleep(80) until the speech finishes
+ * or inventory_skip. The wait mirrors the config-panel post-sleep shape:
+ * inp_update() runs once per wait iteration (demo determinism) and the
+ * presented-frame count matches the libco loop. */
+StepResult Game::drawStoryTextsStep() {
+	enum { ST_DRAW = 0, ST_WAIT = 1 };
+	for (;;) {
+		switch (_stPhase) {
+		case ST_DRAW:
+			if (_pi.quit) {
+				return STEP_DONE;
+			}
 			drawIcon(_currentInventoryIconNum, 80, 8, 0xA);
-			if (*str == 0xFF) {
+			if (*_stStr == 0xFF) {
 				if (_res._lang == LANG_JP) {
-					switch (str[1]) {
+					switch (_stStr[1]) {
 					case 0:
-						textColor = 0xE9;
+						_stTextColor = 0xE9;
 						break;
 					case 1:
-						textColor = 0xEB;
+						_stTextColor = 0xEB;
 						break;
 					default:
-						log_cb(RETRO_LOG_WARN, "Unhandled JP color code 0x%x\n", str[1]);
+						log_cb(RETRO_LOG_WARN, "Unhandled JP color code 0x%x\n", _stStr[1]);
 						break;
 					}
-					str += 2;
+					_stStr += 2;
 				} else {
-					textColor = str[1];
-					// str[2] is an unused color (possibly the shadow)
-					str += 3;
+					_stTextColor = _stStr[1];
+					_stStr += 3;
 				}
 			}
-			int        yPos = 26;
-			while (1) {
-				const int len = getLineLength(str);
-				str = (const uint8_t *) _vid.drawString((const char *) str, (176 - len * 8) / 2, yPos, textColor);
-				yPos += 8;
-				if (*str == 0 || *str == 0xB) {
-					break;
+			{
+				int yPos = 26;
+				while (1) {
+					const int len = getLineLength(_stStr);
+					_stStr = (const uint8_t *) _vid.drawString((const char *) _stStr, (176 - len * 8) / 2, yPos, _stTextColor);
+					yPos += 8;
+					if (*_stStr == 0 || *_stStr == 0xB) {
+						break;
+					}
+					++_stStr;
 				}
-				++str;
 			}
-			MixerChunk chunk;
-			_res.load_VCE(_textToDisplay, textSpeechSegment++, &chunk.data, &chunk.len);
-			if (chunk.data) {
-				_mix.play(&chunk, 32000, Mixer::MAX_VOLUME);
+			_res.load_VCE(_textToDisplay, _stSeg++, &_stChunk.data, &_stChunk.len);
+			if (_stChunk.data) {
+				_mix.play(&_stChunk, 32000, Mixer::MAX_VOLUME);
 			}
-			_vid.updateScreen();
-			while (!_pi.inventory_skip && !_pi.quit) {
-				if (chunk.data && !_mix.isPlaying(&chunk)) {
-					break;
+			_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+			if (_vid._shakeOffset != 0) {
+				_vid._shakeOffset = 0;
+			}
+			_stPhase        = ST_WAIT;
+			_stWaitSleeping = false;
+			return STEP_RUNNING; /* the updateScreen present */
+		default: /* ST_WAIT */
+			if (!_stWaitSleeping) {
+				if (!_pi.inventory_skip && !_pi.quit
+				    && !(_stChunk.data && !_mix.isPlaying(&_stChunk))) {
+					inp_update();
+					_sleep += 80;
+					_stWaitSleeping = true;
+					/* fall through to drain (this frame == first sleep frame) */
+				} else {
+					/* exit wait: free speech, advance to next segment (or end) */
+					if (_stChunk.data) {
+						_mix.stopAll();
+						free(_stChunk.data);
+						_stChunk.data = NULL;
+					}
+					_pi.inventory_skip = false;
+					if (*_stStr == 0) {
+						return STEP_DONE;
+					}
+					++_stStr;
+					memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
+					_stPhase = ST_DRAW;
+					break; /* loop -> next segment in the same call */
 				}
-				inp_update();
-				sleep(80);
 			}
-			if (chunk.data) {
-				_mix.stopAll();
-				free(chunk.data);
+			if (sleepHold()) {
+				return STEP_RUNNING; /* draining sleep(80) */
 			}
-			_pi.inventory_skip = false;
-			if (*str == 0) {
-				break;
-			}
-			++str;
-			memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
+			_stWaitSleeping = false;
+			break; /* loop -> ST_WAIT re-check (next wait iteration) */
+		}
+	}
+}
+
+void Game::drawStoryTexts() {
+	if (_textToDisplay != 0xFFFF) {
+		_stTextColor    = 0xE8;
+		_stStr          = _res.getGameString(_textToDisplay);
+		memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
+		_stSeg          = 0;
+		_stChunk.data   = NULL;
+		_stChunk.len    = 0;
+		_stPhase        = 0; /* ST_DRAW */
+		_stWaitSleeping = false;
+		while (drawStoryTextsStep() == STEP_RUNNING) {
+			yield();
 		}
 		_textToDisplay = 0xFFFF;
 	}
