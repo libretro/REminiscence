@@ -1235,6 +1235,30 @@ void Cutscene::playCredits() {
 	_creditsSequence = false;
 }
 
+/* One presented frame of the text-cutscene wait loop. The original spins on
+ * sleep(TIMER_SLICE) until inventory_skip; since its body has no side effects,
+ * one step() call reproduces exactly one host frame of that loop (accumulate
+ * TIMER_SLICE up to a frame quantum, then present). NOTE: dead in this build
+ * (use_text_cutscenes is never enabled) -- converted only so libco can be
+ * removed without leaving a stack-suspending call behind. */
+bool Cutscene::playTextStep() {
+	if (_game->_pi.quit) {
+		return false;
+	}
+	if (_game->_pi.inventory_skip) {
+		_game->_pi.inventory_skip = false;
+		return false;
+	}
+	{
+		const int mpf = 1000 / _game->getFrameRate();
+		while ((int)_game->_sleep < mpf) {
+			_game->_sleep += TIMER_SLICE;
+		}
+		_game->_sleep -= mpf;
+	}
+	return true;
+}
+
 void Cutscene::playText(const char *str) {
 	Color c;
 	// background
@@ -1256,13 +1280,8 @@ void Cutscene::playText(const char *str) {
 	_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
 	_game->yield();
 
-	while (!_game->_pi.quit) {
-		_game->processEvents();
-		if (_game->_pi.inventory_skip) {
-			_game->_pi.inventory_skip = false;
-			break;
-		}
-		_game->sleep(TIMER_SLICE);
+	while (playTextStep()) {
+		_game->yield();
 	}
 }
 

@@ -148,6 +148,7 @@ struct Cutscene {
 	void prepare();
 	void playCredits();
 	void playText(const char *str);
+	bool playTextStep();
 	void play();
 };
 

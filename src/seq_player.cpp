@@ -224,24 +224,23 @@ SeqPlayer::SeqPlayer(Video *vid, Game *game, Mixer *mixer)
 SeqPlayer::~SeqPlayer() {
 }
 
-void SeqPlayer::play(File *f) {
-	if (_demux.open(f)) {
-		Color pal[256];
-		for (int i = 0; i < 256; ++i) {
-			_vid->getPaletteEntry(i, &pal[i]);
-		}
-		_mix->setPremixHook(mixCallback, this);
-		memset(_buf, 0, 256 * 224);
-		bool clearScreen = true;
-		while (true) {
-			const uint32_t nextFrameTimeStamp = _game->getTimeStamp() + 1000 / 25;
+/* One presented frame of the seq FMV player. DEAD in this build
+ * (use_seq_cutscenes is never enabled); converted mechanically so libco can be
+ * removed. Not ROM-validated. Phases: 0 = decode one frame up to the video
+ * present (or fall through when there's no video data), 1 = post-present,
+ * 2 = arm the inter-frame sleep, 3 = drain it. */
+bool SeqPlayer::playStep() {
+	for (;;) {
+		switch (_seqPhase) {
+		case 0: {
+			_seqNextFrameTs = _game->getTimeStamp() + 1000 / 25;
 			_game->processEvents();
 			if (_game->_pi.quit || _game->_pi.inventory_skip) {
 				_game->_pi.inventory_skip = false;
-				break;
+				return false;
 			}
 			if (!_demux.readFrameData()) {
-				break;
+				return false;
 			}
 			if (_demux._audioDataSize != 0) {
 				SoundBufferQueue *sbq = (SoundBufferQueue *)malloc(sizeof(SoundBufferQueue));
@@ -301,21 +300,53 @@ void SeqPlayer::play(File *f) {
 						}
 					}
 				}
-				if (clearScreen) {
-					clearScreen = false;
+				if (_seqClearScreen) {
+					_seqClearScreen = false;
 					_vid->copyRect(0, 0, kVideoWidth, 224, _buf, 256);
 				} else {
 					_vid->copyRect(0, y0, kVideoWidth, kVideoHeight, _buf, 256);
 				}
-				_game->yield();
+				_seqPhase = 1;
+				return true; /* video frame present (was the yield) */
 			}
-			const int diff = nextFrameTimeStamp - _game->getTimeStamp();
+			_seqPhase = 2;
+			break;
+		}
+		case 1:
+			_seqPhase = 2;
+			break;
+		case 2: {
+			const int diff = _seqNextFrameTs - _game->getTimeStamp();
 			if (diff > 0) {
-				_game->sleep(diff);
+				_game->_sleep += diff;
 			}
+			_seqPhase = 3;
+			break;
+		}
+		default: /* case 3: drain inter-frame sleep */
+			if (_game->sleepHold()) {
+				return true;
+			}
+			_seqPhase = 0;
+			break;
+		}
+	}
+}
+
+void SeqPlayer::play(File *f) {
+	if (_demux.open(f)) {
+		for (int i = 0; i < 256; ++i) {
+			_vid->getPaletteEntry(i, &_seqPal[i]);
+		}
+		_mix->setPremixHook(mixCallback, this);
+		memset(_buf, 0, 256 * 224);
+		_seqClearScreen = true;
+		_seqPhase = 0;
+		while (playStep()) {
+			_game->yield();
 		}
 		for (int i = 0; i < 256; ++i) {
-			_vid->setPaletteEntry(i, &pal[i]);
+			_vid->setPaletteEntry(i, &_seqPal[i]);
 		}
 		_mix->setPremixHook(0, 0);
 		_demux.close();

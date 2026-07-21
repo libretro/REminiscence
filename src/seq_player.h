@@ -67,6 +67,7 @@ struct SeqPlayer {
 
 	void setBackBuffer(uint8_t *buf) { _buf = buf; }
 	void play(File *f);
+	bool playStep();
 	bool mix(int16_t *buf, int len);
 	static bool mixCallback(void *param, int16_t *buf, int len);
 
@@ -77,6 +78,11 @@ struct SeqPlayer {
 	SeqDemuxer _demux;
 	int _soundQueuePreloadSize;
 	SoundBufferQueue *_soundQueue;
+	/* frame-step state (replaces the libco yield in play()) */
+	int _seqPhase;
+	uint32_t _seqNextFrameTs;
+	bool _seqClearScreen;
+	Color _seqPal[256];
 };
 
 #endif /* SEQ_PLAYER_H__ */
