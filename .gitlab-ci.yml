@@ -190,14 +190,6 @@ libretro-build-ngc:
   extends:
     - .libretro-ngc-static-retroarch-master
     - .core-defs
-  # The ngc-static template does not pull the retroarch-precompiled
-  # artifact from its prepare job the way wii-static does, so packaging
-  # fails at `mv ... retroarch-precompiled/`. Pull it explicitly.
-  # (Proper fix belongs in ci-templates/ngc-static.yml.)
-  dependencies:
-    - build-static-retroarch-ngc
-  needs:
-    - build-static-retroarch-ngc
 
 # Nintendo Wii
 libretro-build-wii:
