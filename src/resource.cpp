@@ -679,9 +679,13 @@ void Resource::free_OBJ() {
 	for (int i = 0; i < _numObjectNodes; ++i) {
 		if (_objectNodesMap[i] != prevNode) {
 			ObjectNode *curNode = _objectNodesMap[i];
+			/* record the pointer value for the next iteration's dedup check
+			 * before freeing it -- reading it after free() is undefined
+			 * (-Wuse-after-free); prevNode is only ever compared, never
+			 * dereferenced, so the value copy is all that is needed. */
+			prevNode = curNode;
 			free(curNode->objects);
 			free(curNode);
-			prevNode = curNode;
 		}
 		_objectNodesMap[i] = 0;
 	}
