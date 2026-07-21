@@ -88,6 +88,16 @@ struct Cutscene {
 	int16_t _creditsTextCounter;
 	uint8_t *_page0, *_page1, *_pageC;
 
+	/* Re-entrant VM state (replaces the libco yield inside the cutscene
+	 * player). mainLoop() now runs one presented frame per mainLoopStep()
+	 * call; _stepOp is the suspending opcode currently in flight (-1 = none),
+	 * _stepPhase its progress, _spPhase the setPalette/sync sub-phase and
+	 * _waitSyncN the op_waitForSync loop counter. */
+	int      _stepOp;
+	int      _stepPhase;
+	int      _spPhase;
+	uint16_t _waitSyncN;
+
 	Cutscene(Resource *res, Game *game, Video *vid);
 
 	void sync();
@@ -122,6 +132,18 @@ struct Cutscene {
 	uint8_t fetchNextCmdByte();
 	uint16_t fetchNextCmdWord();
 	void mainLoop(uint16_t offset);
+	void mainLoopInit(uint16_t offset);
+	bool mainLoopStep();
+	bool setPaletteStep();
+	bool syncStep();
+	bool isSuspendingOp(int op);
+	bool dispatchSuspending(int op);
+	bool op_markCurPos_step();
+	bool op_waitForSync_step();
+	bool op_drawStringAtBottom_step();
+	bool op_refreshAll_step();
+	bool op_drawCreditsText_step();
+	bool op_drawStringAtPos_step();
 	void load(uint16_t cutName);
 	void prepare();
 	void playCredits();

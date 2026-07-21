@@ -865,7 +865,256 @@ uint16_t Cutscene::fetchNextCmdWord() {
 	return i;
 }
 
-void Cutscene::mainLoop(uint16_t offset) {
+/* setPalette() as a resumable sub-state-machine. Phase 0 arms the sync pause
+ * (shared _sleep accumulator); phase 1 drains it (each held frame re-presents
+ * the current framebuffer, i.e. the previous cutscene frame); phase 2 commits
+ * the palette, swaps and copyRect's the new frame and presents it once. Returns
+ * true while another presented frame is owed, false once complete. Frame count
+ * equals the old sync()+copyRect+yield sequence exactly. */
+bool Cutscene::setPaletteStep() {
+	switch (_spPhase) {
+	case 0:
+		if (!_game->_pi.quit && !(_game->_pi.dbgMask & PlayerInput::DF_FASTMODE)) {
+			const int32_t delay = _game->getTimeStamp() - _tstamp;
+			const int32_t pause = _frameDelay * TIMER_SLICE - delay;
+			if (pause > 0) {
+				_game->_sleep += pause;
+			}
+		}
+		_spPhase = 1;
+		/* fall through */
+	case 1:
+		if (_game->sleepHold()) {
+			return true;
+		}
+		_tstamp = _game->getTimeStamp();
+		updatePalette();
+		SWAP(_page0, _page1);
+		_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page0, 256);
+		_spPhase = 2;
+		return true; /* present the new frame (was the yield) */
+	default:
+		_spPhase = 0;
+		return false;
+	}
+}
+
+/* sync() as a resumable pause (no new frame drawn; held frames re-present the
+ * current framebuffer). Used by op_waitForSync's non-credits branch. */
+bool Cutscene::syncStep() {
+	switch (_spPhase) {
+	case 0:
+		if (!_game->_pi.quit && !(_game->_pi.dbgMask & PlayerInput::DF_FASTMODE)) {
+			const int32_t delay = _game->getTimeStamp() - _tstamp;
+			const int32_t pause = _frameDelay * TIMER_SLICE - delay;
+			if (pause > 0) {
+				_game->_sleep += pause;
+			}
+		}
+		_spPhase = 1;
+		/* fall through */
+	default:
+		if (_game->sleepHold()) {
+			return true;
+		}
+		_tstamp = _game->getTimeStamp();
+		_spPhase = 0;
+		return false;
+	}
+}
+
+bool Cutscene::op_markCurPos_step() {
+	if (_stepPhase == 0) {
+		_cmdPtrBak = _cmdPtr;
+		drawCreditsText();
+		_frameDelay = 5;
+		_stepPhase  = 1;
+	}
+	if (setPaletteStep()) {
+		return true;
+	}
+	swapLayers();
+	_varText   = 0;
+	_stepPhase = 0;
+	return false;
+}
+
+bool Cutscene::op_refreshAll_step() {
+	if (_stepPhase == 0) {
+		_frameDelay = 5;
+		_stepPhase  = 1;
+	}
+	if (setPaletteStep()) {
+		return true;
+	}
+	swapLayers();
+	_varText = 0xFF;
+	op_handleKeys();
+	_stepPhase = 0;
+	return false;
+}
+
+bool Cutscene::op_drawCreditsText_step() {
+	if (_stepPhase == 0) {
+		_varText = 0xFF;
+		if (_textCurBuf == _textBuf) {
+			++_creditsTextCounter;
+		}
+		memcpy(_page1, _page0, Video::GAMESCREEN_SIZE);
+		_frameDelay = 10;
+		_stepPhase  = 1;
+	}
+	if (setPaletteStep()) {
+		return true;
+	}
+	_stepPhase = 0;
+	return false;
+}
+
+bool Cutscene::op_drawStringAtBottom_step() {
+	if (_stepPhase == 0) {
+		uint16_t strId = fetchNextCmdWord();
+		if (!_creditsSequence) {
+			/* 'espions' - ignore last call, keeps caption on screen longer */
+			if (_id == 0x39 && strId == 0xFFFF && (_cmdPtr - _cmdPtrBak) == 0x10) {
+				_frameDelay = 100;
+				_stepPhase  = 1;
+			} else {
+				memset(_pageC + 179 * 256, 0xC0, 45 * 256);
+				memset(_page1 + 179 * 256, 0xC0, 45 * 256);
+				memset(_page0 + 179 * 256, 0xC0, 45 * 256);
+				if (strId != 0xFFFF) {
+					const uint8_t *str = _res->getCineString(strId);
+					if (str) {
+						drawText(0, 129, str, 0xEF, _page1, 1);
+						drawText(0, 129, str, 0xEF, _pageC, 1);
+					}
+				}
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+	if (setPaletteStep()) {
+		return true;
+	}
+	_stepPhase = 0;
+	return false;
+}
+
+bool Cutscene::op_drawStringAtPos_step() {
+	if (_stepPhase == 0) {
+		uint16_t strId = fetchNextCmdWord();
+		if (strId != 0xFFFF) {
+			int16_t x = (int8_t)fetchNextCmdByte() * 8;
+			int16_t y = (int8_t)fetchNextCmdByte() * 8;
+			if (!_creditsSequence) {
+				const uint8_t *str = _res->getCineString(strId & 0xFFF);
+				if (str) {
+					uint8_t color = 0xD0 + (strId >> 0xC);
+					drawText(x, y, str, color, _page1, 2);
+				}
+				/* 'voyage' - script redraws the string to refresh the screen */
+				if (_id == 0x34 && (strId & 0xFFF) == 0x45) {
+					if ((_cmdPtr - _cmdPtrBak) == 0xA) {
+						_vid->copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _page1, 256);
+						_stepPhase = 2; /* yield one frame */
+						return true;
+					} else {
+						_game->_sleep += 15; /* sleep(15) */
+						_stepPhase = 1;
+					}
+				}
+			}
+		}
+		if (_stepPhase == 0) {
+			return false; /* no suspend taken */
+		}
+	}
+	if (_stepPhase == 1) { /* draining sleep(15) */
+		if (_game->sleepHold()) {
+			return true;
+		}
+		_stepPhase = 0;
+		return false;
+	}
+	/* _stepPhase == 2: the presented yield frame was delivered */
+	_stepPhase = 0;
+	return false;
+}
+
+bool Cutscene::op_waitForSync_step() {
+	for (;;) {
+		switch (_stepPhase) {
+		case 0:
+			if (_creditsSequence) {
+				_waitSyncN = fetchNextCmdByte() * 2;
+				_stepPhase = 1;
+			} else {
+				_frameDelay = fetchNextCmdByte() * 4;
+				_stepPhase  = 3;
+			}
+			break;
+		case 1: /* start a credits loop iteration */
+			_varText    = 0xFF;
+			_frameDelay = 3;
+			if (_textBuf == _textCurBuf) {
+				_creditsTextCounter = 20;
+			}
+			memcpy(_page1, _page0, Video::GAMESCREEN_SIZE);
+			drawCreditsText();
+			_stepPhase = 2;
+			break;
+		case 2:
+			if (setPaletteStep()) {
+				return true;
+			}
+			--_waitSyncN;
+			if (_waitSyncN != 0) {
+				_stepPhase = 1; /* next iteration, same call */
+			} else {
+				swapLayers();
+				_varText   = 0;
+				_stepPhase = 0;
+				return false;
+			}
+			break;
+		default: /* case 3: non-credits sync */
+			if (syncStep()) {
+				return true;
+			}
+			_stepPhase = 0;
+			return false;
+		}
+	}
+}
+
+bool Cutscene::isSuspendingOp(int op) {
+	return op == 0x00 || op == 0x02 || op == 0x05 || op == 0x06
+	    || op == 0x09 || op == 0x0C || op == 0x0D;
+}
+
+bool Cutscene::dispatchSuspending(int op) {
+	switch (op) {
+	case 0x00:
+	case 0x05:
+		return op_markCurPos_step();
+	case 0x02:
+		return op_waitForSync_step();
+	case 0x06:
+		return op_drawStringAtBottom_step();
+	case 0x09:
+		return op_refreshAll_step();
+	case 0x0C:
+		return op_drawCreditsText_step();
+	case 0x0D:
+		return op_drawStringAtPos_step();
+	}
+	return false;
+}
+
+void Cutscene::mainLoopInit(uint16_t offset) {
 	_frameDelay = 5;
 	_tstamp = _game->getTimeStamp();
 
@@ -885,20 +1134,59 @@ void Cutscene::mainLoop(uint16_t offset) {
 	_cmdPtr = _cmdPtrBak = p + _startOffset + offset;
 	_polPtr = _res->_pol;
 
-	while (!_game->_pi.quit && !_interrupted && !_stop) {
+	_stepOp    = -1;
+	_stepPhase = 0;
+	_spPhase   = 0;
+}
+
+/* One presented frame of the cutscene VM. Runs opcodes until a suspending one
+ * owes a frame (then returns true, the wrapper yields), resuming the in-flight
+ * opcode on the next call. Returns false when the opcode stream ends or the
+ * cutscene is quit/interrupted/stopped. */
+bool Cutscene::mainLoopStep() {
+	for (;;) {
+		if (_stepOp >= 0) {
+			if (dispatchSuspending(_stepOp)) {
+				return true;
+			}
+			_stepOp = -1;
+			if (_game->_pi.inventory_skip) {
+				_game->_pi.inventory_skip = false;
+				_interrupted = true;
+			}
+		}
+		if (_game->_pi.quit || _interrupted || _stop) {
+			return false;
+		}
 		uint8_t op = fetchNextCmdByte();
 		if (op & 0x80) {
-			break;
+			return false;
 		}
 		op >>= 2;
 		if (op >= NUM_OPCODES) {
 			log_cb(RETRO_LOG_ERROR, "Invalid cutscene opcode = 0x%02X\n", op);
 		}
-		(this->*_opcodeTable[op])();
+		if (isSuspendingOp(op)) {
+			_stepOp    = op;
+			_stepPhase = 0;
+			if (dispatchSuspending(op)) {
+				return true;
+			}
+			_stepOp = -1;
+		} else {
+			(this->*_opcodeTable[op])();
+		}
 		if (_game->_pi.inventory_skip) {
 			_game->_pi.inventory_skip = false;
 			_interrupted = true;
 		}
+	}
+}
+
+void Cutscene::mainLoop(uint16_t offset) {
+	mainLoopInit(offset);
+	while (mainLoopStep()) {
+		_game->yield();
 	}
 }
 
