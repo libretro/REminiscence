@@ -4,7 +4,6 @@
  * Copyright (C) 2005-2015 Gregory Montoir (cyx@users.sourceforge.net)
  */
 
-#include <math.h>
 #include "cutscene.h"
 #include "resource.h"
 #include "game.h"
@@ -60,20 +59,17 @@ void Cutscene::setPalette() {
 	_game->yield();
 }
 
-#if 0
-#define SIN(a) (int16_t)(sin(a * M_PI / 180) * 256)
-#define COS(a) (int16_t)(cos(a * M_PI / 180) * 256)
-#else
+/* Fixed-point sin/cos lookup tables (staticres.cpp), scaled by 256. The whole
+ * cutscene transform is integer -- the game uses no floating point. These match
+ * the original DOS game's precomputed tables, which round slightly differently
+ * from mathematically-exact sin/cos, e.g.:
+ *   cos(60)  table: 128, math: 127
+ *   cos(120) table:-127, math:-128
+ *   cos(240) table:-128, math:-127
+ *   sin(330) table: 221, math:-127
+ * so the tables (not a runtime sinf/cosf) are authoritative. */
 #define SIN(a) _sinTable[a]
 #define COS(a) _cosTable[a]
-#endif
-
-/*
-  cos(60)  table: 128, math: 127
-  cos(120) table:-127, math:-128
-  cos(240) table:-128, math:-127
-  sin(330) table: 221, math:-127
-*/
 
 void Cutscene::setRotationTransform(uint16_t a, uint16_t b, uint16_t c) { // identity a:0 b:180 c:90
 	const int16_t sin_a = SIN(a);
