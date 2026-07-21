@@ -79,18 +79,22 @@ struct FileSystem_impl
          }
       }
       if (index == -1) {
-         _dirsList = (char **)realloc(_dirsList, (_dirsCount + 1) * sizeof(char *));
-         if (_dirsList) {
+         char **tmp = (char **)realloc(_dirsList, (_dirsCount + 1) * sizeof(char *));
+         if (tmp) {
+            _dirsList = tmp;
             _dirsList[_dirsCount] = strdup(dir);
             index = _dirsCount;
             ++_dirsCount;
          }
       }
-      _filesList = (FileName *)realloc(_filesList, (_filesCount + 1) * sizeof(FileName));
-      if (_filesList) {
-         _filesList[_filesCount].name = strdup(name);
-         _filesList[_filesCount].dir = index;
-         ++_filesCount;
+      {
+         FileName *tmp = (FileName *)realloc(_filesList, (_filesCount + 1) * sizeof(FileName));
+         if (tmp) {
+            _filesList = tmp;
+            _filesList[_filesCount].name = strdup(name);
+            _filesList[_filesCount].dir = index;
+            ++_filesCount;
+         }
       }
    }
 

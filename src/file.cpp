@@ -267,8 +267,20 @@ uint32_t MemFile::write(const void *ptr, uint32_t len)
       }
       else
       {
-         _mem  = static_cast<uint8_t *>(realloc(_mem, new_pos));
-         _size = new_pos;
+         uint8_t *tmp = static_cast<uint8_t *>(realloc(_mem, new_pos));
+         if (tmp)
+         {
+            _mem  = tmp;
+            _size = new_pos;
+         }
+         else
+         {
+            /* realloc failed: keep the original buffer, write only what
+             * fits and flag the error (as in the !_canResize path above) --
+             * the old code nulled _mem and then memcpy'd into it. */
+            to_write = _size - _pos;
+            _ioErr   = true;
+         }
       }
    }
 

@@ -567,13 +567,16 @@ void Resource::load_MBK(File *f) {
 
 void Resource::load_ICN(File *f) {
 	int len = f->size();
+	uint8_t *tmp;
 	if (_icnLen == 0)
-		_icn = (uint8_t *)malloc(len);
+		tmp = (uint8_t *)malloc(len);
 	else
-		_icn = (uint8_t *)realloc(_icn, _icnLen + len);
-	if (_icn)
+		tmp = (uint8_t *)realloc(_icn, _icnLen + len);
+	if (tmp) {
+		_icn = tmp;
 		f->read(_icn + _icnLen, len);
-	_icnLen += len;
+		_icnLen += len;
+	}
 }
 
 void Resource::load_SPR(File *f) {
