@@ -47,9 +47,13 @@ struct Video {
 	Video(Resource *res, Game *game);
 	~Video();
 
+	int _fadeStep; /* resume state for the fade-out step machine */
+
 	void updateScreen();
 	void fadeOut();
 	void fadeOutPalette();
+	void fadeOutInit();
+	StepResult fadeOutStep();
 
 	// frame buffer
 	void setPalette(const uint8_t *pal, int n);

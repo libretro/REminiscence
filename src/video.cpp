@@ -44,22 +44,51 @@ void Video::fadeOut()
 	fadeOutPalette();
 }
 
-void Video::fadeOutPalette()
+void Video::fadeOutInit()
 {
-	for (int step = 16; step >= 0; --step)
-   {
-		for (int c = 0; c < 256; ++c)
-      {
+	_fadeStep = 16;
+}
+
+/* One presented frame of the palette fade-out. Reproduces the original loop
+ * frame-for-frame: on a non-sleeping frame it darkens the palette one notch,
+ * presents (the old updateScreen yield) and schedules sleep(50); the following
+ * frames drain that sleep via the shared accumulator (re-presenting the same
+ * image) before the next notch. Because it shares _sleep with sleep(), the
+ * fractional 50ms/20ms carry is identical to the libco version. */
+StepResult Video::fadeOutStep()
+{
+	if (_game->sleepHold())
+		return STEP_RUNNING; /* draining sleep(50): re-present current frame */
+
+	if (_fadeStep < 0)
+		return STEP_DONE;
+
+	{
+		int c;
+		for (c = 0; c < 256; ++c)
+		{
 			Color col;
 			getPaletteEntry(c, &col);
-			col.r = col.r * step >> 4;
-			col.g = col.g * step >> 4;
-			col.b = col.b * step >> 4;
+			col.r = col.r * _fadeStep >> 4;
+			col.g = col.g * _fadeStep >> 4;
+			col.b = col.b * _fadeStep >> 4;
 			setPaletteEntry(c, &col);
 		}
-		updateScreen();
-		_game->sleep(50);
 	}
+	/* == updateScreen()'s copyRect; the yield is this frame's STEP_RUNNING */
+	copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _frontLayer, 256);
+	if (_shakeOffset != 0)
+		_shakeOffset = 0;
+	_game->_sleep += 50; /* == sleep(50), minus the yielding */
+	--_fadeStep;
+	return STEP_RUNNING;
+}
+
+void Video::fadeOutPalette()
+{
+	fadeOutInit();
+	while (fadeOutStep() == STEP_RUNNING)
+		_game->yield();
 }
 
 void Video::setPaletteSlotBE(int palSlot, int palNum)

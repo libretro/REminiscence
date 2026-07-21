@@ -19,6 +19,17 @@
 
 extern retro_log_printf_t          log_cb;
 
+/* Result of one frame-step of a resumable subsystem. A subsystem's step()
+ * runs the work for exactly one presented host frame and returns STEP_RUNNING;
+ * it returns STEP_DONE once the whole activity (fade, screen, cutscene, ...)
+ * has finished. This is what replaces the libco per-frame yield: instead of
+ * suspending a call stack, each subsystem keeps its progress in members and
+ * advances one frame per call. */
+enum StepResult {
+	STEP_RUNNING,
+	STEP_DONE,
+};
+
 template<typename T>
 static INLINE void SWAP(T &a, T &b) {
 	T tmp = a;

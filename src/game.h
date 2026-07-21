@@ -127,6 +127,7 @@ struct Game {
 	bool            _saveStateCompleted;
 	bool            _endLoop;
 	uint32_t        _frameTimestamp;
+	bool            _finalScoreStarted; /* resume state for showFinalScore step */
 
 	PlayerInput _pi;
 	bool        running;
@@ -146,6 +147,13 @@ struct Game {
 
 	void yield();
 	void sleep(int ms);
+	/* Consume one host frame's worth of pending sleep time from the shared
+	 * _sleep accumulator. Returns true while there is still sleep time to
+	 * burn (the caller should re-present the current frame and return
+	 * STEP_RUNNING), false once the subsystem may advance its logic again.
+	 * Uses the exact same accumulator and quantum as sleep(), so pacing --
+	 * including fractional carry across calls -- is bit-identical. */
+	bool sleepHold();
 	void processEvents();
 
 	uint32_t getTimeStamp();
@@ -172,6 +180,7 @@ struct Game {
 	void drawCurrentInventoryItem();
 	void printLevelCode();
 	void showFinalScore();
+	StepResult showFinalScoreStep();
 	bool handleConfigPanel();
 	bool handleContinueAbort();
 

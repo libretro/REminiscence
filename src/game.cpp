@@ -177,6 +177,15 @@ void Game::sleep(int ms) {
 	}
 }
 
+bool Game::sleepHold() {
+	const int ms_per_frame = 1000 / getFrameRate();
+	if ((int)_sleep >= ms_per_frame) {
+		_sleep -= ms_per_frame;
+		return true;
+	}
+	return false;
+}
+
 void Game::processEvents() {
 
 }
@@ -420,6 +429,36 @@ void Game::drawCurrentInventoryItem() {
 	}
 }
 
+/* One presented frame of the final-score screen. Mirrors the original loop
+ * exactly: each iteration presents the (static) score screen once, then, on
+ * the following frame, polls input and -- if 'use' was not pressed -- burns a
+ * 100ms sleep before looping. _finalScoreStarted marks the post-present frame
+ * so the instant input check folds into the first sleep frame rather than
+ * costing an extra present (keeps the frame count identical to the libco
+ * version). Driven by showFinalScore()'s wrapper for now; once the top-level
+ * driver exists this is called directly from it. */
+StepResult Game::showFinalScoreStep() {
+	if (_pi.quit) {
+		return STEP_DONE;
+	}
+	if (_finalScoreStarted) {
+		/* frame right after a present: input check + start of sleep(100) */
+		_finalScoreStarted = false;
+		if (_pi.use) {
+			_pi.use = false;
+			return STEP_DONE;
+		}
+		_sleep += 100;
+	}
+	if (sleepHold()) {
+		return STEP_RUNNING; /* still sleeping: re-present current frame */
+	}
+	/* advance one iteration: (re)draw and present the score screen */
+	_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+	_finalScoreStarted = true;
+	return STEP_RUNNING;
+}
+
 void Game::showFinalScore() {
 	StateManager sm(this, STATE_FINAL_SCORE);
 	playCutscene(0x49);
@@ -428,15 +467,9 @@ void Game::showFinalScore() {
 	_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 40, 0xE5);
 	strcpy(buf, _menu._passwords[7][_skillLevel]);
 	_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 16, 0xE7);
-	while (!_pi.quit) {
-		_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+	_finalScoreStarted = false;
+	while (showFinalScoreStep() == STEP_RUNNING) {
 		yield();
-		processEvents();
-		if (_pi.use) {
-			_pi.use = false;
-			break;
-		}
-		sleep(100);
 	}
 }
 
