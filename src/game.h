@@ -141,6 +141,15 @@ struct Game {
 	int             _cpCurrent;
 	bool            _cpSleeping;
 	bool            _cpResult;
+	/* resume state for handleInventory step */
+	LivePGE        *_invSelectedPge;
+	InventoryItem   _invItems[24];
+	int             _invNumItems;
+	int             _invCurrentItem;
+	int             _invNumLines;
+	int             _invCurrentLine;
+	bool            _invDisplayScore;
+	bool            _invSleeping;
 
 	PlayerInput _pi;
 	bool        running;
@@ -215,6 +224,7 @@ struct Game {
 	uint16_t getRandomNumber();
 	void changeLevel();
 	void handleInventory();
+	StepResult handleInventoryStep();
 
 	// pieges
 	bool     _pge_playAnimSound;

@@ -1385,127 +1385,152 @@ void Game::changeLevel() {
 	_vid.setTextPalette();
 }
 
+/* One presented frame of the inventory screen. Same post-sleep-input shape as
+ * the config panel (draw; updateScreen; sleep(80); inp_update; handle input),
+ * so it converts identically: iteration N's input is processed on the host
+ * frame that draws iteration N+1, inp_update() runs once per iteration, and the
+ * presented-frame count matches the libco version. Item-list state and the
+ * cursor/line/score-toggle selection are held in members. */
+StepResult Game::handleInventoryStep() {
+	if (_invSleeping) {
+		if (sleepHold()) {
+			return STEP_RUNNING; /* draining sleep(80) */
+		}
+		_invSleeping = false;
+		inp_update();
+		if (_pi.dirMask & PlayerInput::DIR_UP) {
+			_pi.dirMask &= ~PlayerInput::DIR_UP;
+			if (_invCurrentLine < _invNumLines - 1) {
+				++_invCurrentLine;
+				_invCurrentItem = _invCurrentLine * 4;
+			}
+		}
+		if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+			if (_invCurrentLine > 0) {
+				--_invCurrentLine;
+				_invCurrentItem = _invCurrentLine * 4;
+			}
+		}
+		if (_pi.dirMask & PlayerInput::DIR_LEFT) {
+			_pi.dirMask &= ~PlayerInput::DIR_LEFT;
+			if (_invCurrentItem > 0) {
+				int item_num = _invCurrentItem % 4;
+				if (item_num > 0) {
+					--_invCurrentItem;
+				}
+			}
+		}
+		if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
+			_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
+			if (_invCurrentItem < _invNumItems - 1) {
+				int item_num = _invCurrentItem % 4;
+				if (item_num < 3) {
+					++_invCurrentItem;
+				}
+			}
+		}
+		if (_pi.use) {
+			_pi.use = false;
+			_invDisplayScore = !_invDisplayScore;
+		}
+	}
+	if (_pi.inventory_skip || _pi.quit) {
+		return STEP_DONE;
+	}
+	{
+		/* draw inventory background */
+		int              icon_h     = 5;
+		int              icon_y     = 140;
+		int              icon_num   = 31;
+		static const int icon_spr_w = 16;
+		static const int icon_spr_h = 16;
+		do {
+			int icon_x = 56;
+			int icon_w = 9;
+			do {
+				drawIcon(icon_num, icon_x, icon_y, 0xF);
+				++icon_num;
+				icon_x += icon_spr_w;
+			} while (--icon_w);
+			icon_y += icon_spr_h;
+		} while (--icon_h);
+
+		if (!_invDisplayScore) {
+			int      icon_x_pos = 72;
+			for (int i          = 0; i < 4; ++i) {
+				int item_it = _invCurrentLine * 4 + i;
+				if (_invItems[item_it].icon_num == 0xFF) {
+					break;
+				}
+				drawIcon(_invItems[item_it].icon_num, icon_x_pos, 157, 0xA);
+				if (_invCurrentItem == item_it) {
+					drawIcon(76, icon_x_pos, 157, 0xA);
+					_invSelectedPge = _invItems[item_it].live_pge;
+					uint8_t    txt_num = _invItems[item_it].init_pge->text_num;
+					const char *str    = (const char *) _res.getTextString(_currentLevel, txt_num);
+					_vid.drawString(str, (256 - strlen(str) * 8) / 2, 189, 0xED);
+					if (_invItems[item_it].init_pge->init_flags & 4) {
+						char buf[10];
+						snprintf(buf, sizeof(buf), "%d", _invSelectedPge->life);
+						_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 197, 0xED);
+					}
+				}
+				icon_x_pos += 32;
+			}
+			if (_invCurrentLine != 0) {
+				drawIcon(78, 120, 176, 0xA); // down arrow
+			}
+			if (_invCurrentLine != _invNumLines - 1) {
+				drawIcon(77, 120, 143, 0xA); // up arrow
+			}
+		} else {
+			char buf[50];
+			snprintf(buf, sizeof(buf), "SCORE %08u", _score);
+			_vid.drawString(buf, (114 - strlen(buf) * 8) / 2 + 72, 158, 0xE5);
+			snprintf(buf, sizeof(buf), "%s:%s", _res.getMenuString(LocaleData::LI_06_LEVEL),
+			         _res.getMenuString(LocaleData::LI_13_EASY + _skillLevel));
+			_vid.drawString(buf, (114 - strlen(buf) * 8) / 2 + 72, 166, 0xE5);
+		}
+	}
+	/* updateScreen() sans yield */
+	_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+	if (_vid._shakeOffset != 0) {
+		_vid._shakeOffset = 0;
+	}
+	_sleep += 80;
+	_invSleeping = true;
+	return STEP_RUNNING;
+}
+
 void Game::handleInventory() {
 	StateManager sm(this, STATE_INVENTORY);
 
-	LivePGE *selected_pge = 0;
-	LivePGE *pge          = &_pgeLive[0];
+	_invSelectedPge = 0;
+	LivePGE *pge = &_pgeLive[0];
 	if (pge->life > 0 && pge->current_inventory_PGE != 0xFF) {
 		playSound(66, 0);
-		InventoryItem items[24];
-		int           num_items = 0;
-		uint8_t       inv_pge   = pge->current_inventory_PGE;
+		_invNumItems = 0;
+		uint8_t inv_pge = pge->current_inventory_PGE;
 		while (inv_pge != 0xFF) {
-			items[num_items].icon_num = _res._pgeInit[inv_pge].icon_num;
-			items[num_items].init_pge = &_res._pgeInit[inv_pge];
-			items[num_items].live_pge = &_pgeLive[inv_pge];
+			_invItems[_invNumItems].icon_num = _res._pgeInit[inv_pge].icon_num;
+			_invItems[_invNumItems].init_pge = &_res._pgeInit[inv_pge];
+			_invItems[_invNumItems].live_pge = &_pgeLive[inv_pge];
 			inv_pge = _pgeLive[inv_pge].next_inventory_PGE;
-			++num_items;
+			++_invNumItems;
 		}
-		items[num_items].icon_num = 0xFF;
-		int  current_item  = 0;
-		int  num_lines     = (num_items - 1) / 4 + 1;
-		int  current_line  = 0;
-		bool display_score = false;
-		while (!_pi.inventory_skip && !_pi.quit) {
-			// draw inventory background
-			int              icon_h     = 5;
-			int              icon_y     = 140;
-			int              icon_num   = 31;
-			static const int icon_spr_w = 16;
-			static const int icon_spr_h = 16;
-			do {
-				int icon_x = 56;
-				int icon_w = 9;
-				do {
-					drawIcon(icon_num, icon_x, icon_y, 0xF);
-					++icon_num;
-					icon_x += icon_spr_w;
-				} while (--icon_w);
-				icon_y += icon_spr_h;
-			} while (--icon_h);
-
-			if (!display_score) {
-				int      icon_x_pos = 72;
-				for (int i          = 0; i < 4; ++i) {
-					int item_it = current_line * 4 + i;
-					if (items[item_it].icon_num == 0xFF) {
-						break;
-					}
-					drawIcon(items[item_it].icon_num, icon_x_pos, 157, 0xA);
-					if (current_item == item_it) {
-						drawIcon(76, icon_x_pos, 157, 0xA);
-						selected_pge = items[item_it].live_pge;
-						uint8_t    txt_num = items[item_it].init_pge->text_num;
-						const char *str    = (const char *) _res.getTextString(_currentLevel, txt_num);
-						_vid.drawString(str, (256 - strlen(str) * 8) / 2, 189, 0xED);
-						if (items[item_it].init_pge->init_flags & 4) {
-							char buf[10];
-							snprintf(buf, sizeof(buf), "%d", selected_pge->life);
-							_vid.drawString(buf, (256 - strlen(buf) * 8) / 2, 197, 0xED);
-						}
-					}
-					icon_x_pos += 32;
-				}
-				if (current_line != 0) {
-					drawIcon(78, 120, 176, 0xA); // down arrow
-				}
-				if (current_line != num_lines - 1) {
-					drawIcon(77, 120, 143, 0xA); // up arrow
-				}
-			} else {
-				char buf[50];
-				snprintf(buf, sizeof(buf), "SCORE %08u", _score);
-				_vid.drawString(buf, (114 - strlen(buf) * 8) / 2 + 72, 158, 0xE5);
-				snprintf(buf, sizeof(buf), "%s:%s", _res.getMenuString(LocaleData::LI_06_LEVEL),
-				         _res.getMenuString(LocaleData::LI_13_EASY + _skillLevel));
-				_vid.drawString(buf, (114 - strlen(buf) * 8) / 2 + 72, 166, 0xE5);
-			}
-
-			_vid.updateScreen();
-			sleep(80);
-			inp_update();
-
-			if (_pi.dirMask & PlayerInput::DIR_UP) {
-				_pi.dirMask &= ~PlayerInput::DIR_UP;
-				if (current_line < num_lines - 1) {
-					++current_line;
-					current_item = current_line * 4;
-				}
-			}
-			if (_pi.dirMask & PlayerInput::DIR_DOWN) {
-				_pi.dirMask &= ~PlayerInput::DIR_DOWN;
-				if (current_line > 0) {
-					--current_line;
-					current_item = current_line * 4;
-				}
-			}
-			if (_pi.dirMask & PlayerInput::DIR_LEFT) {
-				_pi.dirMask &= ~PlayerInput::DIR_LEFT;
-				if (current_item > 0) {
-					int item_num = current_item % 4;
-					if (item_num > 0) {
-						--current_item;
-					}
-				}
-			}
-			if (_pi.dirMask & PlayerInput::DIR_RIGHT) {
-				_pi.dirMask &= ~PlayerInput::DIR_RIGHT;
-				if (current_item < num_items - 1) {
-					int item_num = current_item % 4;
-					if (item_num < 3) {
-						++current_item;
-					}
-				}
-			}
-			if (_pi.use) {
-				_pi.use = false;
-				display_score = !display_score;
-			}
+		_invItems[_invNumItems].icon_num = 0xFF;
+		_invCurrentItem  = 0;
+		_invNumLines     = (_invNumItems - 1) / 4 + 1;
+		_invCurrentLine  = 0;
+		_invDisplayScore = false;
+		_invSleeping     = false;
+		while (handleInventoryStep() == STEP_RUNNING) {
+			yield();
 		}
 		_pi.inventory_skip = false;
-		if (selected_pge) {
-			pge_setCurrentInventoryObject(selected_pge);
+		if (_invSelectedPge) {
+			pge_setCurrentInventoryObject(_invSelectedPge);
 		}
 		playSound(66, 0);
 	}
