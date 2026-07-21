@@ -90,28 +90,20 @@ size_t retro_serialize_size(void) {
 bool retro_serialize(void *data, size_t size)
 {
    File f;
-
-   if (!game->isStateMainLoop())
-      return false;
-
    f.open(new MemFile(static_cast<uint8_t *>(data),
             static_cast<uint32_t>(size)));
-   game->saveState(&f);
-
-   return !f.ioErr();
+   /* gameplay-only gate + versioned header live in serializeState() */
+   return game->serializeState(&f);
 }
 
 bool retro_unserialize(const void *data, size_t size)
 {
    File f;
-	if (!game->isStateMainLoop())
-		return false;
-
-	f.open(new ReadOnlyMemFile(static_cast<const uint8_t *>(data),
+   f.open(new ReadOnlyMemFile(static_cast<const uint8_t *>(data),
             static_cast<uint32_t>(size)));
-	game->loadState(&f);
-
-	return !f.ioErr();
+   /* Validates the versioned header and resumes gameplay for the saved level,
+    * permitted even during the intro so auto-load-state works at launch. */
+   return game->unserializeState(&f);
 }
 
 void retro_cheat_reset(void) {}

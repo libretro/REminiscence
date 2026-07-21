@@ -509,6 +509,12 @@ struct Game {
 	bool loadGameState(uint8_t slot);
 	void saveState(File *f);
 	void loadState(File *f);
+	/* RetroArch serialize wrappers: versioned header + level-self-contained
+	 * state, and (on load) resume gameplay for the saved level even from the
+	 * intro. */
+	bool serializeState(File *f);
+	bool unserializeState(File *f);
+	void resumeLoadedGameplay();
 };
 
 #endif // GAME_H__

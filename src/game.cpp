@@ -2119,6 +2119,64 @@ void Game::makeGameStateName(uint8_t slot, char *buf) {
 }
 
 static const uint32_t TAG_FBSV = 0x46425356;
+static const uint16_t SAVE_STATE_VERSION = 3; /* bumped for level-self-contained saveState */
+
+/* Reconfigure the frame-driver to run gameplay for the currently loaded level,
+ * entities already in place (used after a state load, including from the intro).
+ * loadLevelData() already loaded the level and played its music; here we just
+ * abandon whatever task was running (intro cutscene, or the previous gameplay
+ * iteration) and enter a fresh mainLoop task for the loaded level. */
+void Game::resumeLoadedGameplay() {
+	_cut._id        = 0xFFFF;
+	_endLoop        = false;
+	_frameTimestamp = getTimeStamp();
+	_taskTop        = 0;
+	_task[0].tag    = TASK_RUN;
+	_task[0].phase  = 6; /* on gameplay exit, run-loop flushes input + advances */
+	_task[0].saved  = STATE_INIT;
+	_state          = STATE_INIT;
+	pushTask(TASK_MAINLOOP);   /* saves STATE_INIT; mainLoop phase 0 sets MAIN_LOOP */
+	_state          = STATE_MAIN_LOOP; /* parked state so a re-serialize sees gameplay */
+}
+
+/* RetroArch save: versioned header, gameplay-only (nothing to capture during a
+ * cutscene). */
+bool Game::serializeState(File *f) {
+	if (!isStateMainLoop()) {
+		return false;
+	}
+	f->writeUint32BE(TAG_FBSV);
+	f->writeUint16BE(SAVE_STATE_VERSION);
+	saveState(f);
+	return !f->ioErr();
+}
+
+/* RetroArch load: validate the versioned header, then load the (level-self-
+ * contained) state and resume gameplay -- allowed even from the intro so
+ * RetroArch's auto-load-state works at launch (issue #14). Old, unversioned or
+ * v2 blobs fail the header check and are rejected rather than mis-read. */
+bool Game::unserializeState(File *f) {
+	uint32_t id = f->readUint32BE();
+	if (id != TAG_FBSV) {
+		return false;
+	}
+	uint16_t ver = f->readUint16BE();
+	if (ver != SAVE_STATE_VERSION) {
+		return false;
+	}
+	if (!isStateMainLoop()) {
+		/* loading from the intro/menu: no level is loaded yet, so force
+		 * loadState()'s level-load path even if the saved level happens to
+		 * equal the current placeholder. */
+		_currentLevel = 0xFF;
+	}
+	loadState(f);
+	if (f->ioErr()) {
+		return false;
+	}
+	resumeLoadedGameplay();
+	return true;
+}
 
 bool Game::saveGameState(uint8_t slot) {
 	bool success = false;
@@ -2130,7 +2188,7 @@ bool Game::saveGameState(uint8_t slot) {
 	} else {
 		// header
 		f.writeUint32BE(TAG_FBSV);
-		f.writeUint16BE(2);
+		f.writeUint16BE(SAVE_STATE_VERSION);
 		char buf[32];
 		memset(buf, 0, sizeof(buf));
 		snprintf(buf, sizeof(buf), "level=%d room=%d", _currentLevel + 1, _currentRoom);
@@ -2148,6 +2206,7 @@ bool Game::saveGameState(uint8_t slot) {
 
 void Game::saveState(File *f) {
 	f->writeByte(_skillLevel);
+	f->writeByte(_currentLevel); /* level the state belongs to (v3) */
 	f->writeUint32BE(_score);
 	if (_col_slots2Cur == 0) {
 		f->writeUint32BE(0xFFFFFFFF);
@@ -2217,7 +2276,7 @@ bool Game::loadGameState(uint8_t slot) {
 			log_cb(RETRO_LOG_WARN, "Bad save state format\n");
 		} else {
 			uint16_t ver = f.readUint16BE();
-			if (ver != 2) {
+			if (ver != SAVE_STATE_VERSION) {
 				log_cb(RETRO_LOG_WARN, "Invalid save state version\n");
 			} else {
 				// header
@@ -2240,6 +2299,22 @@ void Game::loadState(File *f) {
 	uint16_t i;
 	uint32_t off;
 	_skillLevel = f->readByte();
+	uint8_t savedLevel = f->readByte(); /* v3: level the state belongs to */
+	if (savedLevel >= 7) { /* ARRAY_SIZE(_gameLevels); reject corrupt state */
+		f->setIoErr();
+		return;
+	}
+	if (savedLevel != _currentLevel) {
+		/* switch to the saved level: loadLevelData() reloads the level's
+		 * resources and re-inits _pgeLive/tables, so it MUST run before the
+		 * saved entity state is read back over it. It also arms the level's
+		 * opening cutscene via _cut._id -- clear it so a load doesn't replay
+		 * the intro. (A _currentLevel of 0xFF, set by unserializeState when
+		 * loading from outside gameplay, forces this path.) */
+		_currentLevel = savedLevel;
+		loadLevelData();
+		_cut._id = 0xFFFF;
+	}
 	_score      = f->readUint32BE();
 	memset(_pge_liveTable2, 0, sizeof(_pge_liveTable2));
 	memset(_pge_liveTable1, 0, sizeof(_pge_liveTable1));
