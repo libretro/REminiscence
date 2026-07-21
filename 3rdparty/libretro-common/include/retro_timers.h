@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2018 The RetroArch team
+/* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (retro_timers.h).
@@ -25,8 +25,10 @@
 
 #include <stdint.h>
 
-#elif defined(XENON)
+#if defined(XENON)
 #include <time/time.h>
+#elif !defined(__PSL1GHT__) && defined(__PS3__)
+#include <sys/timer.h>
 #elif defined(GEKKO) || defined(__PSL1GHT__) || defined(__QNX__)
 #include <unistd.h>
 #elif defined(WIIU)
@@ -64,7 +66,7 @@ extern int nanosleep(const struct timespec *rqtp, struct timespec *rmtp);
 
 static int nanosleepDOS(const struct timespec *rqtp, struct timespec *rmtp)
 {
-   usleep(1000000 * rqtp->tv_sec + rqtp->tv_nsec / 1000);
+   usleep(1000000L * rqtp->tv_sec + rqtp->tv_nsec / 1000);
 
    if (rmtp)
       rmtp->tv_sec = rmtp->tv_nsec=0;
@@ -76,33 +78,43 @@ static int nanosleepDOS(const struct timespec *rqtp, struct timespec *rmtp)
 #endif
 
 /**
- * retro_sleep:
- * @msec         : amount in milliseconds to sleep
+ * Briefly suspends the running thread.
  *
- * Sleeps for a specified amount of milliseconds (@msec).
+ * @param msec The time to sleep for, in milliseconds.
  **/
+#if defined(VITA)
+#define retro_sleep(msec) (sceKernelDelayThread(1000 * (msec)))
+#elif defined(_3DS)
+#define retro_sleep(msec) (svcSleepThread(1000000 * (s64)(msec)))
+#elif defined(__WINRT__) || defined(WINAPI_FAMILY) && WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#define retro_sleep(msec) (SleepEx((msec), FALSE))
+#elif defined(_WIN32)
+#define retro_sleep(msec) (Sleep((msec)))
+#elif defined(XENON)
+#define retro_sleep(msec) (udelay(1000 * (msec)))
+#elif !defined(__PSL1GHT__) && defined(__PS3__)
+#define retro_sleep(msec) (sys_timer_usleep(1000 * (msec)))
+#elif defined(GEKKO) || defined(__PSL1GHT__) || defined(__QNX__)
+#define retro_sleep(msec) (usleep(1000 * (msec)))
+#elif defined(WIIU)
+#define retro_sleep(msec) (OSSleepTicks(ms_to_ticks((msec))))
+#elif defined(__EMSCRIPTEN__)
+/* defined in frontend */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void retro_sleep(unsigned msec);
+#ifdef __cplusplus
+}
+#endif
+#else
 static INLINE void retro_sleep(unsigned msec)
 {
-#if defined(PSP) || defined(VITA)
-   sceKernelDelayThread(1000 * msec);
-#elif defined(_3DS)
-   svcSleepThread(1000000 * (s64)msec);
-#elif defined(__WINRT__)
-	/* TODO/FIXME */
-#elif defined(_WIN32)
-   Sleep(msec);
-#elif defined(XENON)
-   udelay(1000 * msec);
-#elif defined(GEKKO) || defined(__PSL1GHT__) || defined(__QNX__)
-   usleep(1000 * msec);
-#elif defined(WIIU)
-   OSSleepTicks(ms_to_ticks(msec));
-#else
-   struct timespec tv = {0};
-   tv.tv_sec = msec / 1000;
-   tv.tv_nsec = (msec % 1000) * 1000000;
+   struct timespec tv;
+   tv.tv_sec          = msec / 1000;
+   tv.tv_nsec         = (msec % 1000) * 1000000;
    nanosleep(&tv, NULL);
-#endif
 }
+#endif
 
 #endif

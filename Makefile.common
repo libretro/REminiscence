@@ -25,6 +25,7 @@ endif
 
 SOURCES_C :=	$(CORE_DIR)/src/unpack.c \
 		$(LIBRETRO_COMM_DIR)/file/file_path.c \
+		$(LIBRETRO_COMM_DIR)/file/file_path_io.c \
 		$(LIBRETRO_COMM_DIR)/string/stdstring.c \
 		$(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
 		$(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
