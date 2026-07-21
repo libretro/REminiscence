@@ -33,7 +33,7 @@ Game *Game::instance;
 Game::Game(FileSystem *fs, const char *savePath, int level, Language lang)
 	: _cut(&_res, this, &_vid), _menu(&_res, this, &_vid),
 	  _mix(fs, this), _res(fs, lang), _seq(&_vid, this, &_mix), _vid(&_res, this),
-	  _fs(fs), _savePath(savePath), _sleep(0), _state(STATE_INIT) {
+	  _fs(fs), _savePath(savePath), _sleep(0), _lastTimestamp(0), _state(STATE_INIT) {
 	_stateSlot     = 1;
 	_inp_demPos    = 0;
 	_skillLevel    = _menu._skill = 1;
