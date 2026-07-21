@@ -502,6 +502,10 @@ include Makefile.common
 ifneq (,$(findstring msvc,$(platform)))
 WARNINGS :=
 else
+# Suppress a set-but-unused 'wHdr' (-Wunused-but-set-variable) in vendored
+# libmodplug's load_it.cpp. Valid for both C and C++. The deprecated 'register'
+# keyword warning is C++-only and handled via CXXFLAGS below.
+NEW_GCC_WARNING_FLAGS := -Wno-unused-but-set-variable
 WARNINGS := -Wall \
 	-Wno-sign-compare \
 	-Wno-unused-variable \
@@ -535,6 +539,13 @@ FLAGS += $(ENDIANNESS_DEFINES) $(WARNINGS) $(CORE_DEFINE) -DSTDC_HEADERS -D__STD
 
 CXXFLAGS += $(FLAGS)
 CFLAGS += $(FLAGS)
+
+# -Wregister is C++-only (deprecated 'register' keyword in vendored libmodplug's
+# fastmix.cpp SNDMIX macros); apply the suppression to C++ compiles only so the
+# C compiler doesn't warn that the option doesn't apply to it.
+ifeq (,$(findstring msvc,$(platform)))
+CXXFLAGS += -Wno-register
+endif
 
 OBJOUT   = -o 
 LINKOUT  = -o 
