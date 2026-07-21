@@ -128,6 +128,14 @@ struct Game {
 	bool            _endLoop;
 	uint32_t        _frameTimestamp;
 	bool            _finalScoreStarted; /* resume state for showFinalScore step */
+	/* resume state for handleContinueAbort step */
+	int             _caTimeout;
+	int             _caCurrentColor;
+	uint8_t         _caColors[2];
+	uint8_t         _caColorInc;
+	Color           _caCol;
+	bool            _caResume;
+	bool            _caResult;
 
 	PlayerInput _pi;
 	bool        running;
@@ -183,6 +191,7 @@ struct Game {
 	StepResult showFinalScoreStep();
 	bool handleConfigPanel();
 	bool handleContinueAbort();
+	StepResult handleContinueAbortStep();
 
 	void printSaveStateCompleted();
 	void drawLevelTexts();

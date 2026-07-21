@@ -584,71 +584,99 @@ bool Game::handleConfigPanel() {
 	return (current == MENU_ITEM_ABORT);
 }
 
-bool Game::handleContinueAbort() {
-	playCutscene(0x48);
-	int     timeout       = 100;
-	int     current_color = 0;
-	uint8_t colors[]      = {0xE4, 0xE5};
-	uint8_t color_inc     = 0xFF;
-	Color   col;
-	_vid.getPaletteEntry(0xE4, &col);
-	memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
-	while (timeout >= 0 && !_pi.quit) {
+/* One presented frame of the continue/abort screen. Same shape as the fade:
+ * the loop body draws + presents once (copyRect+yield), then burns sleep(100)
+ * before the next iteration. The post-present work (0xE4 colour pulse, timeout
+ * decrement, background restore) is applied on the resume frame; because the
+ * intervening sleep frames re-present the framebuffer (not the freshly drawn
+ * _frontLayer), doing it there is observationally identical to the original,
+ * which applied it after sleep() returned. Frame count per iteration and the
+ * once-per-iteration input handling are preserved exactly. */
+StepResult Game::handleContinueAbortStep() {
+	static const int COLOR_STEP = 8;
+	static const int COLOR_MIN  = 16;
+	static const int COLOR_MAX  = 256 - 16;
+
+	if (_caResume) {
+		_caResume = false;
+		if (_caCol.b >= COLOR_MAX) {
+			_caColorInc = 0;
+		} else if (_caCol.b < COLOR_MIN) {
+			_caColorInc = 0xFF;
+		}
+		if (_caColorInc == 0xFF) {
+			_caCol.b += COLOR_STEP;
+			_caCol.g += COLOR_STEP;
+		} else {
+			_caCol.b -= COLOR_STEP;
+			_caCol.g -= COLOR_STEP;
+		}
+		_vid.setPaletteEntry(0xE4, &_caCol);
+		_sleep += 100;
+		--_caTimeout;
+		memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
+	}
+	if (sleepHold()) {
+		return STEP_RUNNING; /* draining sleep(100): re-present current frame */
+	}
+	if (!(_caTimeout >= 0 && !_pi.quit)) {
+		_caResult = false;
+		return STEP_DONE;
+	}
+	{
 		const char *str;
+		char        buf[50];
 		str = _res.getMenuString(LocaleData::LI_01_CONTINUE_OR_ABORT);
 		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 64, 0xE3);
 		str = _res.getMenuString(LocaleData::LI_02_TIME);
-		char buf[50];
-		snprintf(buf, sizeof(buf), "%s : %d", str, timeout / 10);
+		snprintf(buf, sizeof(buf), "%s : %d", str, _caTimeout / 10);
 		_vid.drawString(buf, 96, 88, 0xE3);
 		str = _res.getMenuString(LocaleData::LI_03_CONTINUE);
-		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 104, colors[0]);
+		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 104, _caColors[0]);
 		str = _res.getMenuString(LocaleData::LI_04_ABORT);
-		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 112, colors[1]);
+		_vid.drawString(str, (256 - strlen(str) * 8) / 2, 112, _caColors[1]);
 		snprintf(buf, sizeof(buf), "SCORE  %08u", _score);
 		_vid.drawString(buf, 64, 154, 0xE3);
-		if (_pi.dirMask & PlayerInput::DIR_UP) {
-			_pi.dirMask &= ~PlayerInput::DIR_UP;
-			if (current_color > 0) {
-				SWAP(colors[current_color], colors[current_color - 1]);
-				--current_color;
-			}
-		}
-		if (_pi.dirMask & PlayerInput::DIR_DOWN) {
-			_pi.dirMask &= ~PlayerInput::DIR_DOWN;
-			if (current_color < 1) {
-				SWAP(colors[current_color], colors[current_color + 1]);
-				++current_color;
-			}
-		}
-		if (_pi.use) {
-			_pi.use = false;
-			return (current_color == 0);
-		}
-		_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
-		yield();
-		static const int COLOR_STEP = 8;
-		static const int COLOR_MIN  = 16;
-		static const int COLOR_MAX  = 256 - 16;
-		if (col.b >= COLOR_MAX) {
-			color_inc = 0;
-		} else if (col.b < COLOR_MIN) {
-			color_inc = 0xFF;
-		}
-		if (color_inc == 0xFF) {
-			col.b += COLOR_STEP;
-			col.g += COLOR_STEP;
-		} else {
-			col.b -= COLOR_STEP;
-			col.g -= COLOR_STEP;
-		}
-		_vid.setPaletteEntry(0xE4, &col);
-		processEvents();
-		sleep(100);
-		--timeout;
-		memcpy(_vid._frontLayer, _vid._tempLayer, Video::GAMESCREEN_SIZE);
 	}
-	return false;
+	if (_pi.dirMask & PlayerInput::DIR_UP) {
+		_pi.dirMask &= ~PlayerInput::DIR_UP;
+		if (_caCurrentColor > 0) {
+			SWAP(_caColors[_caCurrentColor], _caColors[_caCurrentColor - 1]);
+			--_caCurrentColor;
+		}
+	}
+	if (_pi.dirMask & PlayerInput::DIR_DOWN) {
+		_pi.dirMask &= ~PlayerInput::DIR_DOWN;
+		if (_caCurrentColor < 1) {
+			SWAP(_caColors[_caCurrentColor], _caColors[_caCurrentColor + 1]);
+			++_caCurrentColor;
+		}
+	}
+	if (_pi.use) {
+		_pi.use    = false;
+		_caResult  = (_caCurrentColor == 0);
+		return STEP_DONE;
+	}
+	_vid.copyRect(0, 0, Video::GAMESCREEN_W, Video::GAMESCREEN_H, _vid._frontLayer, 256);
+	_caResume = true;
+	return STEP_RUNNING;
+}
+
+bool Game::handleContinueAbort() {
+	playCutscene(0x48);
+	_caTimeout      = 100;
+	_caCurrentColor = 0;
+	_caColors[0]    = 0xE4;
+	_caColors[1]    = 0xE5;
+	_caColorInc     = 0xFF;
+	_vid.getPaletteEntry(0xE4, &_caCol);
+	memcpy(_vid._tempLayer, _vid._frontLayer, Video::GAMESCREEN_SIZE);
+	_caResume = false;
+	_caResult = false;
+	while (handleContinueAbortStep() == STEP_RUNNING) {
+		yield();
+	}
+	return _caResult;
 }
 
 void Game::printLevelCode() {
